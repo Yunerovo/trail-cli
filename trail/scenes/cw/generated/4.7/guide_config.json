@@ -1,0 +1,4567 @@
+{
+  "meta": {
+    "game": "hkrpg",
+    "season_id": "2",
+    "sub_season_id": "1",
+    "big_version": "4.7",
+    "lineup_filter_version": "4.7"
+  },
+  "lineup_levels": [
+    {
+      "id": "0",
+      "name": "5级搜牌"
+    },
+    {
+      "id": "1",
+      "name": "6级搜牌"
+    },
+    {
+      "id": "2",
+      "name": "7级搜牌"
+    },
+    {
+      "id": "3",
+      "name": "速升8级"
+    },
+    {
+      "id": "4",
+      "name": "速升9级"
+    }
+  ],
+  "traits": [
+    {
+      "id": "100102",
+      "name": "仙舟舰队",
+      "type": 0
+    },
+    {
+      "id": "100202",
+      "name": "奇兽花园",
+      "type": 0
+    },
+    {
+      "id": "100302",
+      "name": "幻月游戏",
+      "type": 0
+    },
+    {
+      "id": "100402",
+      "name": "星间旅人",
+      "type": 0
+    },
+    {
+      "id": "100502",
+      "name": "开拓银轨",
+      "type": 0
+    },
+    {
+      "id": "100602",
+      "name": "千星商会",
+      "type": 0
+    },
+    {
+      "id": "100702",
+      "name": "云上五骁",
+      "type": 0
+    },
+    {
+      "id": "100802",
+      "name": "星核猎手",
+      "type": 0
+    },
+    {
+      "id": "100902",
+      "name": "小小巨人",
+      "type": 0
+    },
+    {
+      "id": "101002",
+      "name": "梦境交织",
+      "type": 0
+    },
+    {
+      "id": "101102",
+      "name": "少女乐队",
+      "type": 0
+    },
+    {
+      "id": "101202",
+      "name": "黄金大饭店",
+      "type": 0
+    },
+    {
+      "id": "200102",
+      "name": "追击",
+      "type": 1
+    },
+    {
+      "id": "200202",
+      "name": "持续伤害",
+      "type": 1
+    },
+    {
+      "id": "200302",
+      "name": "群攻",
+      "type": 1
+    },
+    {
+      "id": "200402",
+      "name": "连击",
+      "type": 1
+    },
+    {
+      "id": "200502",
+      "name": "击破",
+      "type": 1
+    },
+    {
+      "id": "200602",
+      "name": "召唤",
+      "type": 1
+    },
+    {
+      "id": "200702",
+      "name": "欢愉",
+      "type": 1
+    },
+    {
+      "id": "200802",
+      "name": "反击",
+      "type": 1
+    },
+    {
+      "id": "200902",
+      "name": "能量",
+      "type": 1
+    },
+    {
+      "id": "201002",
+      "name": "治疗",
+      "type": 1
+    },
+    {
+      "id": "201102",
+      "name": "守护",
+      "type": 1
+    },
+    {
+      "id": "300102",
+      "name": "双龙吟",
+      "type": 2
+    },
+    {
+      "id": "300202",
+      "name": "盗火行者",
+      "type": 2
+    },
+    {
+      "id": "300302",
+      "name": "巡海游侠",
+      "type": 2
+    },
+    {
+      "id": "300402",
+      "name": "黑市主理人",
+      "type": 2
+    },
+    {
+      "id": "300502",
+      "name": "机心巧匠",
+      "type": 2
+    },
+    {
+      "id": "300602",
+      "name": "幻乐之主",
+      "type": 2
+    },
+    {
+      "id": "400102",
+      "name": "连携追击",
+      "type": 3
+    },
+    {
+      "id": "400202",
+      "name": "四维狂潮",
+      "type": 3
+    },
+    {
+      "id": "400302",
+      "name": "星狩誓言",
+      "type": 3
+    },
+    {
+      "id": "400402",
+      "name": "救世主",
+      "type": 3
+    },
+    {
+      "id": "400502",
+      "name": "从师",
+      "type": 3
+    }
+  ],
+  "roles": [
+    {
+      "id": "150302",
+      "name": "真珠",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100302",
+        "100602",
+        "201102"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "150102",
+      "name": "火花",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "101102",
+        "200702"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "141302",
+      "name": "长夜月",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "101002",
+        "200602"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "141202",
+      "name": "刻律德菈",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100902",
+        "200402"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "140502",
+      "name": "那刻夏",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100202",
+        "200402"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "131502",
+      "name": "波提欧",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100402",
+        "200502"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "130702",
+      "name": "黑天鹅",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "101002",
+        "200202"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "122502",
+      "name": "忘归人",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "200502"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "122402",
+      "name": "三月七",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100502",
+        "200102"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "122202",
+      "name": "灵砂",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100102",
+        "200302",
+        "201002"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "121002",
+      "name": "桂乃芬",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100102",
+        "200202"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "120402",
+      "name": "景元",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100702",
+        "200602"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "111202",
+      "name": "托帕&账账",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100602",
+        "200102"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "100402",
+      "name": "瓦尔特",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100502",
+        "200302"
+      ],
+      "cost": "1"
+    },
+    {
+      "id": "151202",
+      "name": "知更鸟•晴歌",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100602",
+        "200602",
+        "200902"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "150502",
+      "name": "绯英",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "200902"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "141002",
+      "name": "海瑟音",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "200202"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "140402",
+      "name": "万敌",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "101202",
+        "200802"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "140102",
+      "name": "大黑塔",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100402",
+        "200302"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "131302",
+      "name": "星期日",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "100502",
+        "200402"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "131002",
+      "name": "流萤",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100802",
+        "200502"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "130902",
+      "name": "知更鸟",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101102",
+        "200102"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "130602",
+      "name": "花火",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100902",
+        "101002",
+        "200702"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "122102",
+      "name": "云璃",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100102",
+        "200802"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "121102",
+      "name": "白露",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100702",
+        "200402",
+        "201002"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "110502",
+      "name": "娜塔莎",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100402",
+        "200202",
+        "201002"
+      ],
+      "cost": "2"
+    },
+    {
+      "id": "800902",
+      "name": "开拓者",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100502",
+        "100802",
+        "200902"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "150602",
+      "name": "银狼LV.999",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100302",
+        "100802",
+        "200702"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "150202",
+      "name": "爻光",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100602",
+        "200702"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "140702",
+      "name": "遐蝶",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "101202",
+        "200602"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "140602",
+      "name": "赛飞儿",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100202",
+        "200302"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "132102",
+      "name": "大丽花",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "101002",
+        "200502"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "131702",
+      "name": "乱破",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "101102",
+        "200502"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "122002",
+      "name": "飞霄",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100102",
+        "200102"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "121802",
+      "name": "椒丘",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100102",
+        "200202"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "121202",
+      "name": "镜流",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100702",
+        "200402"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "120802",
+      "name": "符玄",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100902",
+        "200802",
+        "201102"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "120302",
+      "name": "罗刹",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "201002"
+      ],
+      "cost": "3"
+    },
+    {
+      "id": "151302",
+      "name": "砂金•戏浪",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100602",
+        "200702"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "151112",
+      "name": "星神★阿哈",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "200702",
+        "300602"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "151002",
+      "name": "姬子•启行",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100502",
+        "200902"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "150702",
+      "name": "千冶•刃",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "100802",
+        "200302"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "141502",
+      "name": "昔涟",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101202",
+        "200602"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "140902",
+      "name": "风堇",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "200602",
+        "201002"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "140302",
+      "name": "缇宝",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100902",
+        "200102"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "130802",
+      "name": "黄泉",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101002",
+        "200302"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "130402",
+      "name": "砂金",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "200102",
+        "201102"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "121702",
+      "name": "藿藿",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100902",
+        "200902",
+        "201002"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "121502",
+      "name": "寒鸦",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100102",
+        "200402"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "120502",
+      "name": "刃",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100702",
+        "200802"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "110302",
+      "name": "希露瓦",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101102",
+        "200202"
+      ],
+      "cost": "4"
+    },
+    {
+      "id": "604202",
+      "name": "帕姆王",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100502"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "151122",
+      "name": "星神★阿哈",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "200702",
+        "300602"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "150402",
+      "name": "不死途",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100302",
+        "200102",
+        "300302"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "141402",
+      "name": "丹恒•腾荒",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "300102"
+      ],
+      "cost": "5",
+      "is_hidden": true
+    },
+    {
+      "id": "140802",
+      "name": "白厄",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "101202",
+        "300202"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "140202",
+      "name": "阿格莱雅",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100202",
+        "200402"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "131402",
+      "name": "翡翠",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100602",
+        "200302",
+        "300402"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "121402",
+      "name": "雪衣",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100102",
+        "200502"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "121302",
+      "name": "丹恒•饮月",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100502",
+        "100702",
+        "300102"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "110702",
+      "name": "克拉拉",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "200802",
+        "300502"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "100502",
+      "name": "卡芙卡",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100802",
+        "200202"
+      ],
+      "cost": "5"
+    },
+    {
+      "id": "151132",
+      "name": "星神★阿哈",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "200702",
+        "300602"
+      ],
+      "cost": "7"
+    }
+  ],
+  "role_tags": [],
+  "portal_list": [
+    {
+      "portal_id": "101",
+      "title": "火药味",
+      "description": "开局时获得2个简易武装箱。"
+    },
+    {
+      "portal_id": "102",
+      "title": "特权阶级",
+      "description": "第二位面开始时，获得1个特权武装箱。"
+    },
+    {
+      "portal_id": "103",
+      "title": "增发货币",
+      "description": "第一/二/三位面开始时，获得一个6/8/12金币的晶矿。"
+    },
+    {
+      "portal_id": "104",
+      "title": "深井角斗场",
+      "description": "本局首次达成5连胜时，获得【财富宝钻】。"
+    },
+    {
+      "portal_id": "105",
+      "title": "经济过热",
+      "description": "本局的全部奖励节点替换为次元扑满主题，次元扑满会掉落更多战利品。"
+    },
+    {
+      "portal_id": "106",
+      "title": "二手市场",
+      "description": "商店刷新20次后，获得30金币和【员工投影仪】。"
+    },
+    {
+      "portal_id": "107",
+      "title": "人身意外险",
+      "description": "所有首领节点前都加入一个额外补给阶段。"
+    },
+    {
+      "portal_id": "108",
+      "title": "过剩经费",
+      "description": "补给阶段中，角色会携带两件装备。"
+    },
+    {
+      "portal_id": "109",
+      "title": "人才引进",
+      "description": "开局拥有1个随机<color=#927fe7>4费角色</color>。"
+    },
+    {
+      "portal_id": "110",
+      "title": "彩虹时代",
+      "description": "这局的投资策略均为棱彩品质。"
+    },
+    {
+      "portal_id": "111",
+      "title": "黄金时代",
+      "description": "这局的投资策略均为黄金品质。"
+    },
+    {
+      "portal_id": "112",
+      "title": "白银时代",
+      "description": "这局的投资策略均为白银品质，因此敌人难度不会由于选择高品质投资策略而提高。"
+    },
+    {
+      "portal_id": "113",
+      "title": "蓝海",
+      "description": "进入到一个随机投资环境中，开局额外获得6金币。"
+    },
+    {
+      "portal_id": "114",
+      "title": "轮岗",
+      "description": "备战阶段开始时，使一个随机费用的刷新概率翻倍，每个备战阶段重新随机。"
+    },
+    {
+      "portal_id": "115",
+      "title": "三星佩佩",
+      "description": "获得一个穿戴三个随机星徽的佩佩。"
+    },
+    {
+      "portal_id": "116",
+      "title": "粗星佩佩",
+      "description": "获得一个穿戴三个随机星徽的佩佩，粗心的佩佩有时候会把星徽落在你的物品栏。"
+    },
+    {
+      "portal_id": "117",
+      "title": "战争边疆",
+      "description": "第三位面的所有战斗节点都替换为遭遇节点。"
+    },
+    {
+      "portal_id": "118",
+      "title": "劳务派遣合同",
+      "description": "获得随机星徽，每次进入首领节点时，获得对应羁绊的随机角色。"
+    },
+    {
+      "portal_id": "119",
+      "title": "经济严重过热",
+      "description": "本局的全部奖励节点替换为超级次元扑满主题！超级次元扑满会掉落超多战利品！！但它们跑得超快！！！"
+    },
+    {
+      "portal_id": "120",
+      "title": "长线利好",
+      "description": "花费金币进行30次刷新后，获得20金币，之后在本局游戏中，只需要1金币就能刷新。"
+    },
+    {
+      "portal_id": "121",
+      "title": "人才下沉",
+      "description": "商店中有概率出现2星角色。"
+    },
+    {
+      "portal_id": "122",
+      "title": "联席决策",
+      "description": "在2-6节点进行一次额外的投资策略三选一。"
+    },
+    {
+      "portal_id": "123",
+      "title": "头彩",
+      "description": "第一个投资策略是棱彩品质。"
+    },
+    {
+      "portal_id": "124",
+      "title": "尾彩",
+      "description": "第三个投资策略是棱彩品质。"
+    },
+    {
+      "portal_id": "131",
+      "title": "红钻贵族",
+      "description": "开局时拥有【红钻】和一个【简易武装箱】。"
+    },
+    {
+      "portal_id": "132",
+      "title": "蓝钻贵族",
+      "description": "开局时拥有【蓝钻】和一个【简易武装箱】。"
+    },
+    {
+      "portal_id": "133",
+      "title": "英雄登场",
+      "description": "获得1个2星<color=#ffd471>5费角色</color>，19个节点后才能将其上场。战斗完胜后，上场节点额外提前1点。"
+    },
+    {
+      "portal_id": "134",
+      "title": "命运礼物",
+      "description": "立刻获得一个【惊喜盒】，倒计时12个节点后礼盒打开，战斗完胜后，倒计时额外减少1点。"
+    },
+    {
+      "portal_id": "135",
+      "title": "银•金•彩",
+      "description": "本局在固定节点进行投资策略选择时，左、中、右的选项分别为银金彩品质，并且投资策略刷新次数+2。"
+    },
+    {
+      "portal_id": "136",
+      "title": "战力提升",
+      "description": "获得1个随机2星1费的输出角色，进入新节点时，这位角色永久获得随机属性加成。"
+    },
+    {
+      "portal_id": "137",
+      "title": "战力飙升",
+      "description": "获得1个随机2星<color=#6cce9f>2费角色</color>，进入新节点时，这位角色永久获得随机属性加成。"
+    },
+    {
+      "portal_id": "138",
+      "title": "成功经验",
+      "description": "在你升到8级后，进入接下来3个节点时，获得12经验。"
+    },
+    {
+      "portal_id": "144",
+      "title": "人才储备",
+      "description": "开局补给替换为3个随机<color=#7196ff>3费角色</color>。<color=#7196ff>3费角色</color>升至2/3星时，获得11%/33%速度增幅、22%/66%伤害增幅。"
+    },
+    {
+      "portal_id": "145",
+      "title": "进化算法",
+      "description": "进入新节点时，所有场上角色获得4%前后台强度和2%伤害减免，该效果可叠加。"
+    },
+    {
+      "portal_id": "146",
+      "title": "敌后破坏",
+      "description": "开局时，使一个已生成的敌人词缀失效。"
+    },
+    {
+      "portal_id": "147",
+      "title": "策略大师",
+      "description": "获取投资策略时，获得（2*已拥有投资策略数）的金币。在3-5节点额外获得一个投资策略。"
+    },
+    {
+      "portal_id": "149",
+      "title": "提前登场",
+      "description": "主角光环选择环节提前至1-6和2-4节点。"
+    },
+    {
+      "portal_id": "150",
+      "title": "刷刷刷",
+      "description": "第一/二/三位面开始时，分别获得2/3/4次商店免费刷新。"
+    },
+    {
+      "portal_id": "151",
+      "title": "光环采购",
+      "description": "本局主角光环的刷新价格固定为1金币，并获得6次免费主角光环刷新。"
+    },
+    {
+      "portal_id": "152",
+      "title": "青梅牛马",
+      "description": "获得2个【实习生投影仪】。首次同时拥有2个3星<color=#b4b4b4>1费角色</color>时，获得1个【完美投影仪】。"
+    },
+    {
+      "portal_id": "1015",
+      "title": "群攻概念股",
+      "description": "开局时获得【群攻】角色，【群攻】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2101",
+      "title": "仙舟舰队邀请",
+      "description": "获得一个【仙舟舰队星徽】。"
+    },
+    {
+      "portal_id": "2102",
+      "title": "奇兽花园邀请",
+      "description": "获得一个【奇兽花园星徽】。"
+    },
+    {
+      "portal_id": "2103",
+      "title": "幻月游戏邀请",
+      "description": "获得一个【幻月游戏星徽】。"
+    },
+    {
+      "portal_id": "2104",
+      "title": "星间旅人邀请",
+      "description": "获得一个【星间旅人星徽】。"
+    },
+    {
+      "portal_id": "2105",
+      "title": "开拓银轨邀请",
+      "description": "获得一个【开拓银轨星徽】。"
+    },
+    {
+      "portal_id": "2107",
+      "title": "星核猎手邀请",
+      "description": "获得一个【星核猎手星徽】。"
+    },
+    {
+      "portal_id": "2108",
+      "title": "小小巨人邀请",
+      "description": "获得一个【小小巨人星徽】。"
+    },
+    {
+      "portal_id": "2109",
+      "title": "梦境交织邀请",
+      "description": "获得一个【梦境交织星徽】。"
+    },
+    {
+      "portal_id": "2110",
+      "title": "黄金大饭店邀请",
+      "description": "获得一个【黄金大饭店星徽】。"
+    },
+    {
+      "portal_id": "2111",
+      "title": "追击邀请",
+      "description": "获得一个【追击星徽】。"
+    },
+    {
+      "portal_id": "2112",
+      "title": "持续伤害邀请",
+      "description": "获得一个【持续伤害星徽】。"
+    },
+    {
+      "portal_id": "2113",
+      "title": "群攻邀请",
+      "description": "获得一个【群攻星徽】。"
+    },
+    {
+      "portal_id": "2114",
+      "title": "连击邀请",
+      "description": "获得一个【连击星徽】。"
+    },
+    {
+      "portal_id": "2115",
+      "title": "击破邀请",
+      "description": "获得一个【击破星徽】。"
+    },
+    {
+      "portal_id": "2116",
+      "title": "召唤邀请",
+      "description": "获得一个【召唤星徽】。"
+    },
+    {
+      "portal_id": "2117",
+      "title": "欢愉邀请",
+      "description": "获得一个【欢愉星徽】。"
+    },
+    {
+      "portal_id": "2118",
+      "title": "反击邀请",
+      "description": "获得一个【反击星徽】。"
+    },
+    {
+      "portal_id": "2119",
+      "title": "能量邀请",
+      "description": "获得一个【能量星徽】。"
+    },
+    {
+      "portal_id": "2201",
+      "title": "仙舟舰队概念股",
+      "description": "开局时获得【仙舟舰队】角色和初始简易装备,【仙舟舰队】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2202",
+      "title": "奇兽花园概念股",
+      "description": "开局时获得【奇兽花园】角色和初始简易装备,【奇兽花园】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2203",
+      "title": "幻月游戏概念股",
+      "description": "开局时获得【幻月游戏】角色和初始简易装备,【幻月游戏】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2204",
+      "title": "开拓银轨概念股",
+      "description": "开局时获得【开拓银轨】角色和初始简易装备,【开拓银轨】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2205",
+      "title": "千星商会概念股",
+      "description": "开局时获得【千星商会】角色和初始简易装备,【千星商会】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2206",
+      "title": "追击概念股",
+      "description": "开局时获得【追击】角色和初始简易装备,【追击】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2207",
+      "title": "持续伤害概念股",
+      "description": "开局时获得【持续伤害】角色和初始简易装备,【持续伤害】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2208",
+      "title": "群攻概念股",
+      "description": "开局时获得【群攻】角色和初始简易装备,【群攻】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2209",
+      "title": "连击概念股",
+      "description": "开局时获得【连击】角色和初始简易装备,【连击】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2210",
+      "title": "击破概念股",
+      "description": "开局时获得【击破】角色和初始简易装备,【击破】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2211",
+      "title": "召唤概念股",
+      "description": "开局时获得【召唤】角色和初始简易装备,【召唤】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2212",
+      "title": "欢愉概念股",
+      "description": "开局时获得【欢愉】角色和初始简易装备,【欢愉】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2213",
+      "title": "反击概念股",
+      "description": "开局时获得【反击】角色和初始简易装备,【反击】角色的刷新概率提高。"
+    },
+    {
+      "portal_id": "2214",
+      "title": "能量概念股",
+      "description": "开局时获得【能量】角色和初始简易装备,【能量】角色的刷新概率提高。"
+    }
+  ],
+  "strategy_list": [
+    {
+      "strategy_id": "100101",
+      "title": "特战资金",
+      "description": "进入首领节点时，获得7枚金币。"
+    },
+    {
+      "strategy_id": "100102",
+      "title": "特战资金+",
+      "description": "进入首领节点时，获得11枚金币。"
+    },
+    {
+      "strategy_id": "100201",
+      "title": "经验到账",
+      "description": "获得10经验值。"
+    },
+    {
+      "strategy_id": "100301",
+      "title": "免费午餐",
+      "description": "获得11次免费刷新。"
+    },
+    {
+      "strategy_id": "100401",
+      "title": "二费援军",
+      "description": "获得4个随机<color=#6cce9f>2费角色</color>。"
+    },
+    {
+      "strategy_id": "100402",
+      "title": "三费援军",
+      "description": "获得4个随机<color=#7196ff>3费角色</color>。"
+    },
+    {
+      "strategy_id": "100403",
+      "title": "四费援军",
+      "description": "获得4个随机<color=#927fe7>4费角色</color>。"
+    },
+    {
+      "strategy_id": "100501",
+      "title": "存款回报",
+      "description": "每次进入新节点时，如果在上个节点没有花费金币，则获得2次免费刷新。"
+    },
+    {
+      "strategy_id": "100601",
+      "title": "尾款交付",
+      "description": "进入最后一个补给阶段后，获得30金币。"
+    },
+    {
+      "strategy_id": "100701",
+      "title": "打捞人才库",
+      "description": "每次进入补给阶段后，随机获得一个未被选择的角色及其携带的装备。"
+    },
+    {
+      "strategy_id": "100702",
+      "title": "打捞人才库+",
+      "description": "每次进入补给阶段后，随机获得一个未被选择的角色及其携带的装备。获得1个随机简易装备和4金币。"
+    },
+    {
+      "strategy_id": "100901",
+      "title": "胜利，还是胜利",
+      "description": "使当前连胜数变为4。获得4金币。"
+    },
+    {
+      "strategy_id": "101001",
+      "title": "全队的希望",
+      "description": "处在前台1号位的我方角色获得15%伤害增幅和15%生命增幅。"
+    },
+    {
+      "strategy_id": "101101",
+      "title": "黄金期货",
+      "description": "5个节点后，进行一次不能刷新的黄金投资策略三选一。"
+    },
+    {
+      "strategy_id": "101102",
+      "title": "黄金期货+",
+      "description": "4个节点后，进行一次不能刷新的黄金投资策略三选一。"
+    },
+    {
+      "strategy_id": "101201",
+      "title": "返利",
+      "description": "每购买3个<color=#ffd471>5费角色</color>，获得3金币。"
+    },
+    {
+      "strategy_id": "101202",
+      "title": "返利+",
+      "description": "每购买3个<color=#ffd471>5费角色</color>，获得3金币。立刻获得6金币。"
+    },
+    {
+      "strategy_id": "101301",
+      "title": "规模效应",
+      "description": "首次拥有8个一样的角色时，获得1个【完美投影仪】。"
+    },
+    {
+      "strategy_id": "101401",
+      "title": "军火贸易",
+      "description": "获得1个【简易武装箱】，获得4金币。"
+    },
+    {
+      "strategy_id": "101402",
+      "title": "军火贸易+",
+      "description": "获得1个【简易武装箱】，获得8金币。"
+    },
+    {
+      "strategy_id": "101501",
+      "title": "以战养战",
+      "description": "在遭遇节点战斗后，获得1个【简易武装箱】。获得6金币。"
+    },
+    {
+      "strategy_id": "101601",
+      "title": "人才激励",
+      "description": "获得1个【员工投影仪】，4个节点后，获得1个【员工投影仪】。"
+    },
+    {
+      "strategy_id": "101602",
+      "title": "人才激励+",
+      "description": "获得1个【员工投影仪】，3个节点后，获得1个【员工投影仪】。"
+    },
+    {
+      "strategy_id": "101701",
+      "title": "成长基金",
+      "description": "在你到达9级时，提供36金币。"
+    },
+    {
+      "strategy_id": "101801",
+      "title": "武力刷新",
+      "description": "合成装备时，获得2次刷新。"
+    },
+    {
+      "strategy_id": "101901",
+      "title": "节省工位",
+      "description": "在接下来3个节点只有3个备战席位置。随后，获得3件简易装备。"
+    },
+    {
+      "strategy_id": "102001",
+      "title": "躺平",
+      "description": "你无法在商店购买角色和刷新，持续3个节点。在此之后，获得20金币。"
+    },
+    {
+      "strategy_id": "102101",
+      "title": "公司人才流动",
+      "description": "每次进入新节点时，处在备战席最右侧3个位置的角色变为随机的同费用角色。获得2金币。"
+    },
+    {
+      "strategy_id": "102201",
+      "title": "市场干预",
+      "description": "下一次和每4次商店刷新都将是全<color=#7196ff>3费角色</color>。获得5次刷新。"
+    },
+    {
+      "strategy_id": "102301",
+      "title": "恢复生机",
+      "description": "最终首领战结束时，回复40点小队生命值。"
+    },
+    {
+      "strategy_id": "102401",
+      "title": "扩充团队",
+      "description": "获得2个<color=#b4b4b4>1费角色</color>，2个<color=#6cce9f>2费角色</color>和1个<color=#7196ff>3费角色</color>。"
+    },
+    {
+      "strategy_id": "102501",
+      "title": "武装支援",
+      "description": "获得1件随机简易装备和2个随机<color=#7196ff>3费角色</color>。"
+    },
+    {
+      "strategy_id": "102502",
+      "title": "武装支援+",
+      "description": "获得1件随机简易装备和1个随机<color=#927fe7>4费角色</color>，获得6金币。"
+    },
+    {
+      "strategy_id": "102601",
+      "title": "爆晶矿•银",
+      "description": "我方小队消灭敌方目标时，有20%概率获得一个战利品晶矿。"
+    },
+    {
+      "strategy_id": "102701",
+      "title": "全员晋升",
+      "description": "场上的所有角色会永久升级成比自身高1费的随机角色(最大5费)。获得3个【拆装扳手】。"
+    },
+    {
+      "strategy_id": "102901",
+      "title": "合并同类项",
+      "description": "刷新商店时，若刷新的角色中出现2个相同的角色，获得1金币。获得4次免费刷新。"
+    },
+    {
+      "strategy_id": "103001",
+      "title": "无伤通关",
+      "description": "战斗结束时，若此次战斗中没有角色陷入过无法战斗状态，获得1金币。立即获得1个【生命之花】。"
+    },
+    {
+      "strategy_id": "103101",
+      "title": "招聘资金",
+      "description": "获得2张<color=#7196ff>3费聘用书</color>，获得4金币。"
+    },
+    {
+      "strategy_id": "103102",
+      "title": "招聘资金+",
+      "description": "获得2张<color=#927fe7>4费聘用书</color>，获得5金币。"
+    },
+    {
+      "strategy_id": "103201",
+      "title": "气氛组",
+      "description": "战斗结束时，每有2名伤害统计中造成伤害为0的角色，获得1经验。"
+    },
+    {
+      "strategy_id": "103202",
+      "title": "气氛组+",
+      "description": "战斗结束时，每有2名伤害统计中造成伤害为0的角色，获得1经验。获得8经验。"
+    },
+    {
+      "strategy_id": "103301",
+      "title": "健康充值",
+      "description": "获得30点小队生命和30点小队生命上限。"
+    },
+    {
+      "strategy_id": "103401",
+      "title": "溜佩佩",
+      "description": "获得9金币，什么都没带的佩佩会在你的后排逛街，让小队获得1%前/后台强度。"
+    },
+    {
+      "strategy_id": "103402",
+      "title": "溜佩佩+",
+      "description": "获得15金币，什么都没带的佩佩会在你的后排逛街，让小队获得1%前/后台强度。"
+    },
+    {
+      "strategy_id": "103501",
+      "title": "招财狗",
+      "description": "获得一个佩佩。战斗胜利后，若未损失小队生命值，则每有一个佩佩就会为你提供1金币。"
+    },
+    {
+      "strategy_id": "103701",
+      "title": "成长的快乐",
+      "description": "升到8级后，你购买经验所需的金币降低1金币。立刻获得4经验。"
+    },
+    {
+      "strategy_id": "103802",
+      "title": "二极管",
+      "description": "本场对局中，你的遭遇节点只有最低和最高两个难度；获得10小队生命值和生命上限，获得6金币。"
+    },
+    {
+      "strategy_id": "103901",
+      "title": "免费升舱",
+      "description": "本场对局中，你的遭遇奖励提高1级（遭遇4也能获得额外奖励）。"
+    },
+    {
+      "strategy_id": "104001",
+      "title": "星星相印",
+      "description": "每次合成3星角色时，获得5金币。立刻获得1个【员工投影仪】。"
+    },
+    {
+      "strategy_id": "104101",
+      "title": "片场解散",
+      "description": "你的主角们主角光环全部失效，并获得等同次数的更换主角机会。"
+    },
+    {
+      "strategy_id": "104201",
+      "title": "投资升级",
+      "description": "你的下一个投资策略品质提高1级。"
+    },
+    {
+      "strategy_id": "104301",
+      "title": "实习生培养计划",
+      "description": "获得1个【实习生投影仪】。进入4个新节点后，再获得2个【实习生投影仪】。我方<color=#b4b4b4>1费角色</color>的前/后台强度提高8%。"
+    },
+    {
+      "strategy_id": "110101",
+      "title": "买彩票",
+      "description": "获得1个随机星徽。"
+    },
+    {
+      "strategy_id": "110102",
+      "title": "买彩票+",
+      "description": "获得1个随机星徽和1个【冶金炉】。"
+    },
+    {
+      "strategy_id": "130101",
+      "title": "公司军火更新•银",
+      "description": "每次进入新节点时，你物品栏里的装备变为同品质的其他装备。获得1件随机简易装备。"
+    },
+    {
+      "strategy_id": "130201",
+      "title": "许诺特权",
+      "description": "在进入7个节点后，获得1个【特权武装箱】。"
+    },
+    {
+      "strategy_id": "130301",
+      "title": "赌神•银",
+      "description": "获得一个【随便骰子】。"
+    },
+    {
+      "strategy_id": "130401",
+      "title": "钻石商人",
+      "description": "升到9级时，获得【财富宝钻】。"
+    },
+    {
+      "strategy_id": "130501",
+      "title": "保险",
+      "description": "每损失20点小队生命值，获得5金币和1个随机简易装备。"
+    },
+    {
+      "strategy_id": "130601",
+      "title": "自由市场",
+      "description": "每当你将要获得一件简易装备时，改为获得1个【简易武装箱】。获得1个随机的简易装备。"
+    },
+    {
+      "strategy_id": "130701",
+      "title": "先亏后盈",
+      "description": "损失10点小队生命值，3个节点后获得2个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "130801",
+      "title": "精密拆装·银",
+      "description": "获得1个【精密拆装扳手】。获得1个随机简易武装。"
+    },
+    {
+      "strategy_id": "130901",
+      "title": "好运令牌·银",
+      "description": "进入6个节点后，获得1个【好运令牌】。"
+    },
+    {
+      "strategy_id": "131001",
+      "title": "全都要•银",
+      "description": "本局游戏中，补给阶段的可选项减少2个。下1个补给阶段选择后，额外获得所有未选择的角色及装备。"
+    },
+    {
+      "strategy_id": "131201",
+      "title": "无害垃圾",
+      "description": "获得一个【垃圾袋】并获得8金币。"
+    },
+    {
+      "strategy_id": "150101",
+      "title": "团队力量•银",
+      "description": "每有一个已激活的非独立羁绊，小队就会获得3%前/后台强度。"
+    },
+    {
+      "strategy_id": "150201",
+      "title": "应援团",
+      "description": "进入战斗时，如果后排至少有4个角色，我方小队速度增幅提高15%。"
+    },
+    {
+      "strategy_id": "150301",
+      "title": "正能量",
+      "description": "进入战斗时，我方小队恢复等同于能量上限20%的能量。"
+    },
+    {
+      "strategy_id": "150501",
+      "title": "完美开局",
+      "description": "战斗中，关卡进度小于50%时，我方小队前/后台强度提高40%。"
+    },
+    {
+      "strategy_id": "150701",
+      "title": "基层贡献",
+      "description": "你的场上每有一个<color=#b4b4b4>1费角色</color>，我方小队获得6%速度增幅和4%伤害减免。3星1费改为提供3倍。"
+    },
+    {
+      "strategy_id": "150801",
+      "title": "榜样的力量•银",
+      "description": "战斗中，伤害统计排名第一的队员成为【榜样】，前/后台强度提高25%。"
+    },
+    {
+      "strategy_id": "150901",
+      "title": "当头一棒",
+      "description": "每个波次开始时，对生命上限最高的敌方目标造成1000%基础伤害，并使其陷入【脆弱】：受到的伤害提高30%。"
+    },
+    {
+      "strategy_id": "151001",
+      "title": "简单模式",
+      "description": "敌人难度降低3，最多降低至0。"
+    },
+    {
+      "strategy_id": "151101",
+      "title": "难度修改器",
+      "description": "遭遇和首领节点的敌人难度降低4，最多降低至0。"
+    },
+    {
+      "strategy_id": "151201",
+      "title": "幸运喷雾",
+      "description": "我方小队的幸运一击伤害提高25%。"
+    },
+    {
+      "strategy_id": "151301",
+      "title": "免战牌",
+      "description": "进入战斗节点时，直接跳过战斗并进入下一个节点，可生效2次。获得30点经验。"
+    },
+    {
+      "strategy_id": "200101",
+      "title": "定期福利",
+      "description": "立刻获得4个金币，并且在每次进入新节点时，获得2金币。"
+    },
+    {
+      "strategy_id": "200201",
+      "title": "孪生素数",
+      "description": "获得本投资策略后，首次购买1/2/3/4/5费角色时，获得2/3/5/7/11点经验值。"
+    },
+    {
+      "strategy_id": "200301",
+      "title": "加油站",
+      "description": "现在及每次进入新节点时获得1次免费刷新，立刻获得8金币。"
+    },
+    {
+      "strategy_id": "200401",
+      "title": "价值投资•金",
+      "description": "获得1个随机的2星<color=#b4b4b4>1费角色</color>。每次进入新节点时，获得1星的该角色，补给后额外获得2个，持续至本局游戏结束。"
+    },
+    {
+      "strategy_id": "200501",
+      "title": "枪在手",
+      "description": "立刻获得1件随机简易装备，首领战后，获得1件随机简易装备。"
+    },
+    {
+      "strategy_id": "200502",
+      "title": "枪在手+",
+      "description": "立刻获得2件随机简易装备，首领战后，获得1件随机简易装备。"
+    },
+    {
+      "strategy_id": "200601",
+      "title": "小复制",
+      "description": "获得2个【员工投影仪】。获得7金币。"
+    },
+    {
+      "strategy_id": "200602",
+      "title": "小复制+",
+      "description": "获得2个【员工投影仪】。获得13金币。"
+    },
+    {
+      "strategy_id": "200701",
+      "title": "延迟收益",
+      "description": "在战斗开始60行动值后，我方小队伤害增幅提高40%。"
+    },
+    {
+      "strategy_id": "200801",
+      "title": "市场活力",
+      "description": "商店中有概率出现2星的1费或<color=#6cce9f>2费角色</color>，出现概率随等级提升。"
+    },
+    {
+      "strategy_id": "200901",
+      "title": "不要小看我们的羁绊",
+      "description": "当你激活8个羁绊并完成一场战斗后，进入节点时获得5个随机星徽。"
+    },
+    {
+      "strategy_id": "201001",
+      "title": "星级压制",
+      "description": "我方小队获得10%速度增幅，攻击星级低于自身的敌人后，额外造成1次等同于原伤害20%的真实伤害。"
+    },
+    {
+      "strategy_id": "201101",
+      "title": "彩虹期货",
+      "description": "5个节点后，进行一次不能刷新的棱彩投资策略三选一。"
+    },
+    {
+      "strategy_id": "201102",
+      "title": "彩虹期货+",
+      "description": "4个节点后，进行一次不能刷新的棱彩投资策略三选一。"
+    },
+    {
+      "strategy_id": "201201",
+      "title": "采购专员•金",
+      "description": "每7次刷新，商店会刷出5张费用相同的角色，费用为你备战席最左侧角色的费用。"
+    },
+    {
+      "strategy_id": "201301",
+      "title": "长期主义",
+      "description": "现在及接下来3次进入新节点时，每次获得7金币。"
+    },
+    {
+      "strategy_id": "201302",
+      "title": "长期主义+",
+      "description": "现在及接下来3次进入新节点时，每次获得9金币。"
+    },
+    {
+      "strategy_id": "201601",
+      "title": "星变",
+      "description": "战斗开始时，使一个随机1费角色变为3星。"
+    },
+    {
+      "strategy_id": "201701",
+      "title": "嘴硬",
+      "description": "战斗失败时，受到的小队生命值伤害提高5点，但能维持原来的连胜数。获得6金币。"
+    },
+    {
+      "strategy_id": "201801",
+      "title": "固定理财",
+      "description": "现在以及每个位面开始时，获得4经验值和2次免费刷新。"
+    },
+    {
+      "strategy_id": "201802",
+      "title": "固定理财+",
+      "description": "现在以及每个位面开始时，获得6经验值和3次免费刷新。"
+    },
+    {
+      "strategy_id": "201901",
+      "title": "市场混乱",
+      "description": "在奖励节点的备战阶段，你的商店每4秒进行一次强制刷新，持续7次。"
+    },
+    {
+      "strategy_id": "202001",
+      "title": "爆晶矿•金",
+      "description": "我方小队消灭敌方目标时，有30%概率获得一个战利品晶矿。"
+    },
+    {
+      "strategy_id": "202101",
+      "title": "大裁员",
+      "description": "出售场上和备战席的所有角色，获得双倍价格的金币。获得9次免费刷新。"
+    },
+    {
+      "strategy_id": "202201",
+      "title": "四费晋升",
+      "description": "你购买的下1个<color=#927fe7>4费角色</color>将立刻升到2星。获得12金币。"
+    },
+    {
+      "strategy_id": "202401",
+      "title": "空仓",
+      "description": "获得1件随机的简易装备。进入新节点时，如果物品栏和备战席没有任何装备(消耗品除外)，则获得2经验值。"
+    },
+    {
+      "strategy_id": "202402",
+      "title": "空仓+",
+      "description": "获得1件随机的简易装备和10经验值。进入新节点时，如果物品栏和备战席没有任何装备(消耗品除外)，则获得2经验值。"
+    },
+    {
+      "strategy_id": "202501",
+      "title": "超发货币",
+      "description": "失去你现在所有的金币，并在5个节点后，获得该金币数+70的总金币。"
+    },
+    {
+      "strategy_id": "202601",
+      "title": "人才空洞",
+      "description": "节点开始时，如果备战席角色小于等于4名，则获得3经验。"
+    },
+    {
+      "strategy_id": "202701",
+      "title": "人才济济",
+      "description": "节点开始时，如果备战席角色大于等于8名，则获得3经验。"
+    },
+    {
+      "strategy_id": "202801",
+      "title": "剩余价值",
+      "description": "战斗结束时，你每剩余30行动值，就会在结算时获得1金币。最多获得4金币。"
+    },
+    {
+      "strategy_id": "202901",
+      "title": "成本控制",
+      "description": "战斗结束时，你每剩余10行动值，就会在结算时回复1点小队生命值。最多获得8小队生命值。立即获得8金币、15点小队生命值和15点生命上限。"
+    },
+    {
+      "strategy_id": "203001",
+      "title": "五百强",
+      "description": "首次有我方队员在战斗中达到500前台或后台强度时，获得30金币。立即获得【折叠小刀】、【和平手枪】。"
+    },
+    {
+      "strategy_id": "203101",
+      "title": "大扩招",
+      "description": "扣除你的金币，每损失4金币，获得一个随机<color=#927fe7>4费角色</color>，最多扣除40金币。获得1个【完美投影仪】和10金币。"
+    },
+    {
+      "strategy_id": "203201",
+      "title": "白银投资",
+      "description": "立刻进行一次白银投资策略三选一，选择有3次刷新机会。3个节点后，再获得一个。"
+    },
+    {
+      "strategy_id": "203301",
+      "title": "专家招募",
+      "description": "获得2个<color=#ffd471>5费聘用书</color>，获得4金币。"
+    },
+    {
+      "strategy_id": "203302",
+      "title": "专家招募+",
+      "description": "获得2个<color=#ffd471>5费聘用书</color>，获得12金币。"
+    },
+    {
+      "strategy_id": "203501",
+      "title": "全都要•金",
+      "description": "本局游戏中，补给阶段的可选项减少2个。下2个补给阶段选择后，额外获得所有未选择的角色及装备。"
+    },
+    {
+      "strategy_id": "203601",
+      "title": "广聚天下英才",
+      "description": "获得所有2费角色各一个。"
+    },
+    {
+      "strategy_id": "204701",
+      "title": "双星馈赠",
+      "description": "随机获得2个【星徽】。"
+    },
+    {
+      "strategy_id": "204801",
+      "title": "人才大礼包",
+      "description": "发放12金币的角色，一定有1名<color=#7196ff>3费角色</color>！"
+    },
+    {
+      "strategy_id": "204802",
+      "title": "人才大礼包+",
+      "description": "发放18金币的角色，一定有1名<color=#927fe7>4费角色</color>！"
+    },
+    {
+      "strategy_id": "204803",
+      "title": "人才大礼包++",
+      "description": "发放26金币的角色，一定有1名<color=#ffd471>5费角色</color>！"
+    },
+    {
+      "strategy_id": "204901",
+      "title": "新人报到",
+      "description": "每次战斗结束后，获得1个<color=#6cce9f>2费角色</color>或<color=#b4b4b4>1费角色</color>。"
+    },
+    {
+      "strategy_id": "205001",
+      "title": "换角开演",
+      "description": "获得1次更换主角的机会，并获得10次免费主角光环刷新。"
+    },
+    {
+      "strategy_id": "205101",
+      "title": "刷新连锁",
+      "description": "刷新【主角光环】效果时，获得1次用于商店的免费刷新。获得3次免费主角光环刷新。"
+    },
+    {
+      "strategy_id": "205102",
+      "title": "刷新连锁+",
+      "description": "刷新【主角光环】效果时，获得1次用于商店的免费刷新。获得6次免费主角光环刷新。"
+    },
+    {
+      "strategy_id": "205301",
+      "title": "再议一次·金",
+      "description": "获得1个【简易武装箱】。进入5个新节点后，进行一次不能刷新的黄金投资策略选择。"
+    },
+    {
+      "strategy_id": "211501",
+      "title": "仙舟舰队星徽",
+      "description": "获得1个【仙舟舰队星徽】，和1个【桂乃芬】。"
+    },
+    {
+      "strategy_id": "211601",
+      "title": "奇兽花园星徽",
+      "description": "获得1个【奇兽花园星徽】，和1个【那刻夏】。"
+    },
+    {
+      "strategy_id": "211701",
+      "title": "幻月游戏星徽",
+      "description": "获得1个【幻月游戏星徽】，和1个【火花】。"
+    },
+    {
+      "strategy_id": "211801",
+      "title": "星间旅人星徽",
+      "description": "获得1个【星间旅人星徽】，和1个【忘归人】。"
+    },
+    {
+      "strategy_id": "211901",
+      "title": "开拓银轨星徽",
+      "description": "获得1个【开拓银轨星徽】，和1个【瓦尔特】。"
+    },
+    {
+      "strategy_id": "212101",
+      "title": "星核猎手星徽",
+      "description": "获得1个【星核猎手星徽】，和1个【流萤】。"
+    },
+    {
+      "strategy_id": "212201",
+      "title": "小小巨人星徽",
+      "description": "获得1个【小小巨人星徽】，和1个【刻律德菈】。"
+    },
+    {
+      "strategy_id": "212301",
+      "title": "梦境交织星徽",
+      "description": "获得1个【梦境交织星徽】，和1个【黑天鹅】。"
+    },
+    {
+      "strategy_id": "212401",
+      "title": "黄金大饭店星徽",
+      "description": "获得1个【黄金大饭店星徽】，和1个【万敌】。"
+    },
+    {
+      "strategy_id": "221201",
+      "title": "追击星徽",
+      "description": "获得1个【追击星徽】，和1个【托帕&账账】。"
+    },
+    {
+      "strategy_id": "221301",
+      "title": "持续伤害星徽",
+      "description": "获得1个【持续伤害星徽】，和1个【桂乃芬】。"
+    },
+    {
+      "strategy_id": "221401",
+      "title": "群攻星徽",
+      "description": "获得1个【群攻星徽】，和1个【瓦尔特】。"
+    },
+    {
+      "strategy_id": "221501",
+      "title": "连击星徽",
+      "description": "获得1个【连击星徽】，和1个【那刻夏】。"
+    },
+    {
+      "strategy_id": "221601",
+      "title": "击破星徽",
+      "description": "获得1个【击破星徽】，和1个【忘归人】。"
+    },
+    {
+      "strategy_id": "221701",
+      "title": "召唤星徽",
+      "description": "获得1个【召唤星徽】，和1个【景元】。"
+    },
+    {
+      "strategy_id": "221801",
+      "title": "欢愉星徽",
+      "description": "获得1个【欢愉星徽】，和1个【火花】。"
+    },
+    {
+      "strategy_id": "221901",
+      "title": "反击星徽",
+      "description": "获得1个【反击星徽】，和1个【云璃】。"
+    },
+    {
+      "strategy_id": "222001",
+      "title": "能量星徽",
+      "description": "获得1个【能量星徽】，和1个【绯英】。"
+    },
+    {
+      "strategy_id": "222101",
+      "title": "治疗星徽",
+      "description": "获得1个【治疗星徽】，和1个【灵砂】。"
+    },
+    {
+      "strategy_id": "222201",
+      "title": "守护星徽",
+      "description": "获得1个【守护星徽】，和1个【真珠】。"
+    },
+    {
+      "strategy_id": "230101",
+      "title": "幸运星祝福",
+      "description": "获得1个【幸运星】。我方小队获得15%幸运一击率和5%速度增幅。"
+    },
+    {
+      "strategy_id": "230201",
+      "title": "折叠小刀祝福",
+      "description": "获得1个【折叠小刀】。我方小队获得30%前台强度和5%伤害增幅。"
+    },
+    {
+      "strategy_id": "230301",
+      "title": "和平手枪祝福",
+      "description": "获得1个【和平手枪】。我方小队获得30%后台强度和15初始能量。"
+    },
+    {
+      "strategy_id": "230601",
+      "title": "公司军火更新•金",
+      "description": "每次进入新节点时，你物品栏里的装备变为同品质的其他装备。获得2件随机简易装备。"
+    },
+    {
+      "strategy_id": "230701",
+      "title": "回收计划",
+      "description": "出售角色时，会将进阶装备拆分成简易装备。获得1件进阶装备，并在5个节点后获得1件随机简易装备。"
+    },
+    {
+      "strategy_id": "230702",
+      "title": "回收计划+",
+      "description": "出售角色时，会将进阶装备拆分成简易装备。获得1件进阶装备，并在4个节点后获得1件随机简易装备。"
+    },
+    {
+      "strategy_id": "230801",
+      "title": "升级锅炉",
+      "description": "对简易装备使用冶金炉会使其变为随机进阶装备，获得2个【冶金炉】。"
+    },
+    {
+      "strategy_id": "230901",
+      "title": "秘密典籍",
+      "description": "获得1个【星徽秘典】，获得4金币。"
+    },
+    {
+      "strategy_id": "230902",
+      "title": "秘密典籍+",
+      "description": "获得1个【星徽秘典】，获得8金币。"
+    },
+    {
+      "strategy_id": "231001",
+      "title": "全武行",
+      "description": "获得1个【武器大师】，【武器大师】额外提供5%幸运一击率，5%幸运一击伤害，5%速度增幅。"
+    },
+    {
+      "strategy_id": "231101",
+      "title": "这么大的钻石",
+      "description": "佩佩携带【财富宝钻】出现，这么大的钻石，送给你！"
+    },
+    {
+      "strategy_id": "231201",
+      "title": "红钻闪耀",
+      "description": "获得1个【红钻】。进入3个节点后，获得【简易武装箱】。"
+    },
+    {
+      "strategy_id": "231301",
+      "title": "蓝钻闪耀",
+      "description": "获得1个【蓝钻】。进入3个节点后，获得【简易武装箱】。"
+    },
+    {
+      "strategy_id": "231401",
+      "title": "精密拆装·金",
+      "description": "获得1个【精密拆装扳手】，1个【冶金炉】和2个随机简易武装。"
+    },
+    {
+      "strategy_id": "231501",
+      "title": "好运令牌·金",
+      "description": "获得1个【好运令牌】和3金币。"
+    },
+    {
+      "strategy_id": "231601",
+      "title": "好运来",
+      "description": "合成与获得进阶装备时，改为获得一个【好运令牌】。获得1件随机简易装备和3金币。"
+    },
+    {
+      "strategy_id": "231701",
+      "title": "黄金垃圾",
+      "description": "获得一个【金垃圾袋】，它提供大量属性和15金币。"
+    },
+    {
+      "strategy_id": "240101",
+      "title": "奇美成长记",
+      "description": "商店升级时，获得2点【奇美能量】和6金币。获得1个【那刻夏】和1个【奇美拉投影仪】。"
+    },
+    {
+      "strategy_id": "240201",
+      "title": "舰装焕新",
+      "description": "【仙舟舰队】有50%概率将简易装备临时升级为特权装备，获得1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "240301",
+      "title": "幻月集结",
+      "description": "获得【幻月游戏】一半的成员，进入3个新节点后，获得另一半成员和【简易武装箱】。"
+    },
+    {
+      "strategy_id": "240401",
+      "title": "全速开拓",
+      "description": "现在以及每个位面开始时，获得60【开拓力】，列车造成200%原伤害。"
+    },
+    {
+      "strategy_id": "240402",
+      "title": "全速开拓+",
+      "description": "现在以及每个位面开始时，获得80【开拓力】，列车造成240%原伤害。"
+    },
+    {
+      "strategy_id": "240601",
+      "title": "终结加演",
+      "description": "【能量】羁绊的激活终结技效果可额外触发1次。获得【光能电池】和5金币。"
+    },
+    {
+      "strategy_id": "240701",
+      "title": "伙伴总动员",
+      "description": "获得1个可爱的佩佩，你的小队中每有1个非角色成员，【召唤】羁绊的【召唤力】提高1点。获得12经验。"
+    },
+    {
+      "strategy_id": "240801",
+      "title": "愈挫愈烈",
+      "description": "【反击王】每受到1次攻击，反伤倍率提高5%，持续至战斗结束，可叠加99层。"
+    },
+    {
+      "strategy_id": "240901",
+      "title": "阿哈大悦",
+      "description": "【欢愉】羁绊激活时，阿哈获得40%伤害增幅。将阿哈的装备模板替换为N选1模板。获得1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "250101",
+      "title": "人海战术",
+      "description": "我方小队的前/后台强度提高15%。战斗中，我方小队在场的角色与忆灵数量之和大于8时，我方小队的前/后台强度提高25%。"
+    },
+    {
+      "strategy_id": "250201",
+      "title": "打通上下游•金",
+      "description": "我方小队速度增幅提高10%。每个节点开始时，速度增幅额外提高1%。"
+    },
+    {
+      "strategy_id": "250401",
+      "title": "独狼",
+      "description": "若角色不具有已激活的非独立羁绊，使其获得120%前/后台强度和36%伤害减免。"
+    },
+    {
+      "strategy_id": "250501",
+      "title": "中产阶级",
+      "description": "我方小队里每有1位2星角色，使小队获得5%伤害减免和15%前/后台强度。额外获得3金币。"
+    },
+    {
+      "strategy_id": "250601",
+      "title": "前段发力",
+      "description": "我方小队在进入战斗时行动提前40%，前/后台强度提高60%，每经过1行动值，降低1%，最多降低至0。"
+    },
+    {
+      "strategy_id": "250701",
+      "title": "三三三",
+      "description": "3星/<color=#7196ff>3费</color>/穿戴3件装备的角色，获得10%速度增幅和25%前/后台强度，满足不同条件的效果可叠加。"
+    },
+    {
+      "strategy_id": "250801",
+      "title": "创伤小组",
+      "description": "我方小队伤害增幅提高15%，进入战斗时，生命上限降低30%，受到致命攻击时，行动值惩罚减少20点。"
+    },
+    {
+      "strategy_id": "250901",
+      "title": "绕口令",
+      "description": "进入战斗时，前台一号位角色及其忆灵获得等同于后台一号位角色30%后台强度的前台强度，后台一号位角色及其忆灵获得等同于前台一号位角色30%前台强度的后台强度。"
+    },
+    {
+      "strategy_id": "251201",
+      "title": "榜样的力量•金",
+      "description": "战斗中，伤害统计排名第一的队员成为【榜样】，前/后台强度提高40%。其他队员前/后台强度提高10%。"
+    },
+    {
+      "strategy_id": "251301",
+      "title": "OOTD•金",
+      "description": "我方小队每穿戴一件不同的装备，获得3%生命提高，6%前/后台强度。"
+    },
+    {
+      "strategy_id": "251401",
+      "title": "打人就打脸•金",
+      "description": "我方小队幸运一击率提高10%，造成幸运一击伤害后使受击目标陷入【脆弱】：受到的伤害提高30%，持续1回合。"
+    },
+    {
+      "strategy_id": "251501",
+      "title": "团队力量•金",
+      "description": "每有一个已激活的羁绊，小队就会获得6%前/后台强度和4%生命增幅。"
+    },
+    {
+      "strategy_id": "251601",
+      "title": "钻石恒永久",
+      "description": "获得1个【红钻】，角色每携带1件钻石或由钻石合成的装备，在进入新节点时会永久获得3%伤害增幅。"
+    },
+    {
+      "strategy_id": "253101",
+      "title": "星魂升华",
+      "description": "本局游戏中，我方前台角色的星魂提高1阶"
+    },
+    {
+      "strategy_id": "253301",
+      "title": "爆仓",
+      "description": "我方小队攻击敌方目标后，若其生命值百分比少于16%，将其【斩杀】。"
+    },
+    {
+      "strategy_id": "253901",
+      "title": "终身雇佣",
+      "description": "前台或后台角色参与战斗后，无法再移回备战席或出售。每个节点开始时，我方小队生命增幅和前/后台强度各提高5%，可累积。"
+    },
+    {
+      "strategy_id": "254001",
+      "title": "高端人才投资",
+      "description": "每次进入新节点时，获得2点经验值。我方<color=#ffd471>5费角色</color>的前/后台强度和伤害增幅各提高15%。"
+    },
+    {
+      "strategy_id": "254101",
+      "title": "超额幸运",
+      "description": "我方小队幸运一击率提高12%。战斗中，超过100%的幸运一击率，每超出1%转化为3%的幸运一击伤害。"
+    },
+    {
+      "strategy_id": "260601",
+      "title": "退化",
+      "description": "使最右侧的敌人词缀失效，并使敌人难度-5。获得8金币。"
+    },
+    {
+      "strategy_id": "300101",
+      "title": "开源节流",
+      "description": "获得10金币，利息上限提升至9。进入新节点时，如果上个节点你没有花费金币，则可获得最大利息的金币数。"
+    },
+    {
+      "strategy_id": "300201",
+      "title": "商业间谍",
+      "description": "购买经验的花费减1，升级时刷新商店，并偷取其中最贵的3个角色。"
+    },
+    {
+      "strategy_id": "300401",
+      "title": "概率事件",
+      "description": "刷新时有50%概率获得一次免费刷新。"
+    },
+    {
+      "strategy_id": "300501",
+      "title": "天降救兵",
+      "description": "获得一个随机3星<color=#b4b4b4>1费角色</color>，获得1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "300601",
+      "title": "被动收入",
+      "description": "每次进入新节点时获得经验，数值等同于你备战席最左侧角色的基础费用。"
+    },
+    {
+      "strategy_id": "300701",
+      "title": "及时雨",
+      "description": "获得3个随机2星<color=#927fe7>4费角色</color>和1个【完美投影仪】，获得4次免费刷新。"
+    },
+    {
+      "strategy_id": "300801",
+      "title": "利息上调",
+      "description": "获得25金币。你的最大利息提升至10金币。"
+    },
+    {
+      "strategy_id": "300901",
+      "title": "买断制",
+      "description": "你不再获得利息。即刻获得15金币。每次进入新节点时，获得4经验。"
+    },
+    {
+      "strategy_id": "301001",
+      "title": "本金充裕",
+      "description": "获得26金币。每次进入新节点时，若拥有超过50金币，每额外10金币就会获得1次免费刷新(最多3次)。"
+    },
+    {
+      "strategy_id": "301002",
+      "title": "本金充裕+",
+      "description": "获得45金币。每次进入新节点时，若拥有超过50金币，每额外10金币就会获得1次免费刷新(最多3次)。"
+    },
+    {
+      "strategy_id": "301101",
+      "title": "节节高升",
+      "description": "在你每次升级时获得1个2星角色和1金币。这个角色的费用是你的等级减4(最小值：1费)。"
+    },
+    {
+      "strategy_id": "301201",
+      "title": "彩虹矿",
+      "description": "在下个奖励节点额外获取一个棱彩晶矿，里面装满了丰厚的战利品。"
+    },
+    {
+      "strategy_id": "301202",
+      "title": "彩虹矿+",
+      "description": "在下个奖励节点额外获取一个棱彩晶矿，里面装满了丰厚的战利品。"
+    },
+    {
+      "strategy_id": "301301",
+      "title": "晋升名额",
+      "description": "购买经验时，使商店中的一个随机角色变为高1费的另一个随机角色。"
+    },
+    {
+      "strategy_id": "301401",
+      "title": "公司严选",
+      "description": "现在及每个位面开始时，开启一个由5个独特<color=#927fe7>4费角色</color>组成的商店，并获得3金币。"
+    },
+    {
+      "strategy_id": "301501",
+      "title": "爆晶矿•彩",
+      "description": "我方小队消灭敌方目标时，有45%概率获得一个战利品晶矿。"
+    },
+    {
+      "strategy_id": "301601",
+      "title": "淘金客",
+      "description": "你每次消耗金币刷新商店，都会获得2经验值。"
+    },
+    {
+      "strategy_id": "301701",
+      "title": "高效决策",
+      "description": "获得9999次免费刷新，但是只持续50s。持续时间结束时，移除你所有的免费刷新。"
+    },
+    {
+      "strategy_id": "301801",
+      "title": "奋斗协议",
+      "description": "购买经验值消耗6点小队生命值而非金币。首领战斗结束时回复50点小队生命值。"
+    },
+    {
+      "strategy_id": "301901",
+      "title": "临时工合约",
+      "description": "获得8个【员工投影仪】，进入下个节点时，所有未使用的【员工投影仪】都会消失。"
+    },
+    {
+      "strategy_id": "302001",
+      "title": "武装突入",
+      "description": "遭遇节点的奖励变为2倍。获得2个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "302101",
+      "title": "黄晶矿工",
+      "description": "开启晶矿时，有50%概率获得一个低一档的晶矿，有极低概率获得棱彩晶矿。立刻获得一个黄金晶矿。"
+    },
+    {
+      "strategy_id": "302201",
+      "title": "黄金投资",
+      "description": "立刻进行一次黄金品质投资策略三选一，选择有3次刷新机会。3个节点后，再获得一个。"
+    },
+    {
+      "strategy_id": "302301",
+      "title": "决议：娱乐星球",
+      "description": "你受到的伤害加倍，进入战斗时，若拥有180枚金币，将本局游戏剩余的非首领节点替换为奖励节点。获得50金币。"
+    },
+    {
+      "strategy_id": "302401",
+      "title": "伟大征服",
+      "description": "连胜奖励变为3倍，敌人难度+N，N为你的当前连胜数。获得12经验。"
+    },
+    {
+      "strategy_id": "302501",
+      "title": "孪生姵姵",
+      "description": "获得一个姵姵，它看起来和你的佩佩一模一样！"
+    },
+    {
+      "strategy_id": "302601",
+      "title": "价值投资•彩",
+      "description": "获得1个随机的2星<color=#6cce9f>2费角色</color>。每次进入新节点时，获得1星的该角色，补给后额外获得2个，持续至本局游戏结束。"
+    },
+    {
+      "strategy_id": "302701",
+      "title": "节假日礼盒",
+      "description": "获得随机的大笔奖励。"
+    },
+    {
+      "strategy_id": "302801",
+      "title": "藏一手",
+      "description": "我方小队生命值将降低至0时，免疫这次伤害并将生命值变为40点，并获得30点经验和80金币。"
+    },
+    {
+      "strategy_id": "302901",
+      "title": "控制规模",
+      "description": "最大等级变为7级，获得【财富宝钻】和32金币。"
+    },
+    {
+      "strategy_id": "303001",
+      "title": "星际和平保险",
+      "description": "获得等同于你已损失生命数量的金币。战斗后恢复10点小队生命值。"
+    },
+    {
+      "strategy_id": "303101",
+      "title": "采购专员•彩",
+      "description": "每5次刷新，商店会刷出5张费用相同的角色，费用为你备战席最左侧角色的费用。"
+    },
+    {
+      "strategy_id": "303201",
+      "title": "金币大使叽米",
+      "description": "超稀有的叽米登场！爆出超多金币！！"
+    },
+    {
+      "strategy_id": "303501",
+      "title": "武器批发商",
+      "description": "下个首领节点后，获得所有类型的简易装备各1个。"
+    },
+    {
+      "strategy_id": "303601",
+      "title": "远见",
+      "description": "获得一个随机黄金投资策略和15金币。后续的投资策略节点改为获得随机1个棱彩投资策略（无法刷新），并且不增加敌人难度。"
+    },
+    {
+      "strategy_id": "303701",
+      "title": "搜打撤",
+      "description": "每当你进入新节点时，获得1次免费刷新。通关下一个首领节点后，获得等同于场上和备战席所有角色价值的金币。"
+    },
+    {
+      "strategy_id": "303801",
+      "title": "不等价交换",
+      "description": "交换你的小队生命值和金币。"
+    },
+    {
+      "strategy_id": "303901",
+      "title": "着眼当下",
+      "description": "你购买的下一个1/2/3/4/5费角色变成2星，随后，将其从商店中移除。立即获得5金币。"
+    },
+    {
+      "strategy_id": "304701",
+      "title": "装备变现",
+      "description": "可以出售装备。立刻获得2个【简易武装箱】，每个位面开始时，获得1个随机简易装备。\\n\\n<color=#b4b4b4><i>可出售简易装备、进阶装备、特权装备、星徽和财富宝钻。</i></color>"
+    },
+    {
+      "strategy_id": "304702",
+      "title": "装备变现+",
+      "description": "可以出售装备。立刻获得3个【简易武装箱】，每个位面开始时，获得1个随机简易装备。\\n\\n<color=#b4b4b4><i>可出售简易装备、进阶装备、特权装备、星徽和财富宝钻。</i></color>"
+    },
+    {
+      "strategy_id": "304901",
+      "title": "中坚接力",
+      "description": "立即随机获得1个<color=#7196ff>3费角色</color>。进入新节点时，再随机获得1个<color=#7196ff>3费角色</color>。"
+    },
+    {
+      "strategy_id": "305001",
+      "title": "再议一次·彩",
+      "description": "获得1个【简易武装箱】和3金币。进入4个新节点后，进行一次不能刷新的棱彩投资策略选择。"
+    },
+    {
+      "strategy_id": "305101",
+      "title": "分批扩招",
+      "description": "获得3个随机<color=#927fe7>4费角色</color>。进入2个新节点后，再获得3个<color=#927fe7>4费角色</color>。进入首领节点时，再获得3个<color=#927fe7>4费角色</color>。"
+    },
+    {
+      "strategy_id": "305201",
+      "title": "星徽大使叽米",
+      "description": "超稀有的叽米登场！爆出超多星徽！！"
+    },
+    {
+      "strategy_id": "311501",
+      "title": "仙舟舰队星徽套组",
+      "description": "获得1个【仙舟舰队星徽】，和1个【桂乃芬】，以及1个【星航履】。"
+    },
+    {
+      "strategy_id": "311601",
+      "title": "奇兽花园星徽套组",
+      "description": "获得1个【奇兽花园星徽】，和1个【那刻夏】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "311701",
+      "title": "幻月游戏星徽套组",
+      "description": "获得1个【幻月游戏星徽】，和1个【火花】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "311801",
+      "title": "星间旅人星徽套组",
+      "description": "获得1个【星间旅人星徽】，和1个【忘归人】，以及1个【虫洞掘进钻头】。"
+    },
+    {
+      "strategy_id": "311901",
+      "title": "开拓银轨星徽套组",
+      "description": "获得1个【开拓银轨星徽】，和1个【瓦尔特】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "312101",
+      "title": "星核猎手星徽套组",
+      "description": "获得1个【星核猎手星徽】，和1个【流萤】，以及1个【虫洞掘进钻头】。"
+    },
+    {
+      "strategy_id": "312201",
+      "title": "小小巨人星徽套组",
+      "description": "获得1个【小小巨人星徽】，和1个【刻律德菈】，以及1个【信心注入器】。"
+    },
+    {
+      "strategy_id": "312301",
+      "title": "梦境交织星徽套组",
+      "description": "获得1个【梦境交织星徽】，和1个【黑天鹅】，以及1个【光速螺旋桨】。"
+    },
+    {
+      "strategy_id": "312401",
+      "title": "黄金大饭店星徽套组",
+      "description": "获得1个【黄金大饭店星徽】，和1个【万敌】，以及1个【反重力皮靴】。"
+    },
+    {
+      "strategy_id": "321201",
+      "title": "追击星徽套组",
+      "description": "获得1个【追击星徽】，和1个【托帕&账账】，以及1个【反卫星狙击枪】。"
+    },
+    {
+      "strategy_id": "321301",
+      "title": "持续伤害星徽套组",
+      "description": "获得1个【持续伤害星徽】，和1个【桂乃芬】，以及1个【星航履】。"
+    },
+    {
+      "strategy_id": "321401",
+      "title": "群攻星徽套组",
+      "description": "获得1个【群攻星徽】，和1个【瓦尔特】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "321501",
+      "title": "连击星徽套组",
+      "description": "获得1个【连击星徽】，和1个【那刻夏】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "321601",
+      "title": "击破星徽套组",
+      "description": "获得1个【击破星徽】，和1个【忘归人】，以及1个【虫洞掘进钻头】。"
+    },
+    {
+      "strategy_id": "321701",
+      "title": "召唤星徽套组",
+      "description": "获得1个【召唤星徽】，和1个【景元】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "321801",
+      "title": "欢愉星徽套组",
+      "description": "获得1个【欢愉星徽】，和1个【火花】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "321901",
+      "title": "反击星徽套组",
+      "description": "获得1个【反击星徽】，和1个【云璃】，以及1个【高周波电锯】。"
+    },
+    {
+      "strategy_id": "322001",
+      "title": "能量星徽套组",
+      "description": "获得1个【能量星徽】，和1个【绯英】，以及1个【永动机】。"
+    },
+    {
+      "strategy_id": "322101",
+      "title": "治疗星徽套组",
+      "description": "获得1个【治疗星徽】，和1个【灵砂】，以及1个【生命之环】。"
+    },
+    {
+      "strategy_id": "322201",
+      "title": "守护星徽套组",
+      "description": "获得1个【守护星徽】，和1个【真珠】，以及1个【生命之环】。"
+    },
+    {
+      "strategy_id": "330101",
+      "title": "优势火力论",
+      "description": "获得1个【特权赋予卡】和1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "330201",
+      "title": "财富就是力量",
+      "description": "获得1个【财富宝钻】，该装备额外提供30%前/后台强度和20%速度增幅。"
+    },
+    {
+      "strategy_id": "330301",
+      "title": "复印件",
+      "description": "获得一个已经拥有的星徽的复制，获得24点经验。"
+    },
+    {
+      "strategy_id": "330401",
+      "title": "客制化服务",
+      "description": "【随便骰子】会为你的角色随机出其推荐列表中的装备。获得3个【幸运星】。"
+    },
+    {
+      "strategy_id": "330501",
+      "title": "军备供应链",
+      "description": "获得1个【简易武装箱】，接下来5个节点开始时，获得1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "330601",
+      "title": "公司军火更新•彩",
+      "description": "每次进入新节点时，物品栏里的装备变为同品质的其他装备。 获得1件随机特权装备。"
+    },
+    {
+      "strategy_id": "330701",
+      "title": "手枪发烧友",
+      "description": "获得5个【和平手枪】。【和平手枪】提供5%幸运一击率。"
+    },
+    {
+      "strategy_id": "330801",
+      "title": "多元化团队",
+      "description": "获得2个【财富宝钻】，你的羁绊最多只能激活到4人口对应的效果。"
+    },
+    {
+      "strategy_id": "330901",
+      "title": "终身学习",
+      "description": "现在以及每个位面开始时，获得【星徽秘典】。"
+    },
+    {
+      "strategy_id": "331001",
+      "title": "佩佩客串",
+      "description": "佩佩闪亮登场！每完美通关一个战斗节点，佩佩就会穿戴一件进阶装备，进入5个节点后，阿兰接走佩佩们并留下所有装备。"
+    },
+    {
+      "strategy_id": "331301",
+      "title": "入职礼包",
+      "description": "进入战斗时：携带了2件装备的至多4个角色会获得一件处在推荐列表中的随机进阶装备。"
+    },
+    {
+      "strategy_id": "331401",
+      "title": "独家代言",
+      "description": "从3件进阶装备中选择一件获取。本局游戏中，你获得组成该装备的简易装备时，改为获得该进阶装备。"
+    },
+    {
+      "strategy_id": "331501",
+      "title": "精密拆装·彩",
+      "description": "获得1个【精密拆装扳手】和1个【随便骰子·特权】。"
+    },
+    {
+      "strategy_id": "331601",
+      "title": "好运令牌·彩",
+      "description": "获得1个【好运令牌】。每累计进入4个节点后，获得1个【好运令牌】。"
+    },
+    {
+      "strategy_id": "331701",
+      "title": "全都要•彩",
+      "description": "本局游戏中，补给阶段的可选项减少2个。补给阶段选择后，额外获得所有未选择的角色及装备。"
+    },
+    {
+      "strategy_id": "331801",
+      "title": "分解万物",
+      "description": "获得一个【物质分解液】，本局游戏中，你的所有进阶装备变成【物质分解液】。它将额外造成3次伤害，对普通/精英及首领敌人分别造成2%/1%生命上限百分比的真实伤害，并使我方小队获得4%伤害减免。"
+    },
+    {
+      "strategy_id": "332001",
+      "title": "脱颖而出",
+      "description": "穿戴3件装备的角色在进入战斗时，会将其中随机一件变为特权装备，持续到战斗结束。"
+    },
+    {
+      "strategy_id": "332301",
+      "title": "融合召唤",
+      "description": "给角色穿戴2件相同进阶装备时，它们会合成为对应的特权装备。获得1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "332401",
+      "title": "环保大使叽米",
+      "description": "获得超稀有的叽米！！获得超多【金垃圾袋】！！"
+    },
+    {
+      "strategy_id": "332501",
+      "title": "跨界礼包",
+      "description": "获得1个【红钻】、3件随机简易装备和5金币。"
+    },
+    {
+      "strategy_id": "340101",
+      "title": "人脉网络",
+      "description": "获得3个随机星徽和4金币。"
+    },
+    {
+      "strategy_id": "340102",
+      "title": "人脉网络+",
+      "description": "获得3个随机星徽、1个【冶金炉】和4金币。"
+    },
+    {
+      "strategy_id": "340201",
+      "title": "扩编筹备",
+      "description": "获得1个随机星徽。进入3个新节点后，获得1个【财富宝钻】。"
+    },
+    {
+      "strategy_id": "340301",
+      "title": "人脉进阶",
+      "description": "获得1个随机星徽。在一场战斗中激活2个非独立羁绊后，获得一份奖励。此后，每次达成目标，下一次领取奖励所需激活的羁绊数量增加，奖励也更加丰厚。"
+    },
+    {
+      "strategy_id": "340401",
+      "title": "独乐乐不如众乐乐",
+      "description": "阿哈装备可以由角色穿戴，这些装备的售价提高2金币。获得3个随机欢愉角色。"
+    },
+    {
+      "strategy_id": "350101",
+      "title": "幸运之子",
+      "description": "我方小队幸运一击率提高25%。进入战斗时，我方小队中幸运一击率达到100%的角色，自身与忆灵幸运一击伤害提高60%。"
+    },
+    {
+      "strategy_id": "350301",
+      "title": "超光速提拔",
+      "description": "战斗开始时：1个随机的<color=#b4b4b4>1费角色</color>在这场战斗中升为4星，并获得5%前/后台强度。"
+    },
+    {
+      "strategy_id": "350401",
+      "title": "战术义眼",
+      "description": "我方小队消灭普通/精英及首领敌人时，恢复25%/75%能量。"
+    },
+    {
+      "strategy_id": "350402",
+      "title": "战术义眼+",
+      "description": "我方小队消灭普通/精英及首领敌人时，恢复25%/75%能量。获得1个【简易武装箱】。"
+    },
+    {
+      "strategy_id": "350403",
+      "title": "战术义眼++",
+      "description": "我方小队消灭普通/精英及首领敌人时，恢复25%/75%能量。获得1个【进阶武装箱】。"
+    },
+    {
+      "strategy_id": "350501",
+      "title": "榜样的力量•彩",
+      "description": "战斗中，伤害统计排名第一的队员成为【榜样】，前/后台强度提高70%。其他队员施放攻击后，对攻击目标造成等同于【榜样】累计伤害1%的真实伤害。"
+    },
+    {
+      "strategy_id": "350601",
+      "title": "佩佩驾到",
+      "description": "获得1个携带着3个永久附着星徽的【佩佩】。获得8金币。"
+    },
+    {
+      "strategy_id": "350701",
+      "title": "万箭齐发",
+      "description": "战斗开始时，发射风箭攻击随机敌方目标，箭矢数量等同于小队总星数+8，每根风箭造成等同于1600%基础伤害的风属性伤害。"
+    },
+    {
+      "strategy_id": "350801",
+      "title": "后勤超响应",
+      "description": "角色的后台强度提高，其数值等同于后台总星数×12%。"
+    },
+    {
+      "strategy_id": "350901",
+      "title": "三五成群",
+      "description": "后台角色数量达到3名/5名及以上时，你的小队获得5%/30%速度增幅和15%/65%前/后台强度。"
+    },
+    {
+      "strategy_id": "351101",
+      "title": "更快，更幸运",
+      "description": "进入战斗时，速度最高的角色及其忆灵速度增幅提高8%，幸运一击率提高12%。每经过20行动值，在另一名我方角色上重复此效果。"
+    },
+    {
+      "strategy_id": "351301",
+      "title": "打通上下游•彩",
+      "description": "我方小队获得15%前/后台强度，每次进入新节点时，该加成提高4%。"
+    },
+    {
+      "strategy_id": "351401",
+      "title": "野蛮成长",
+      "description": "战斗开始时，随机两名前台角色获得100%前台强度提高，随机两名后台角色获得100%后台强度提高。"
+    },
+    {
+      "strategy_id": "351601",
+      "title": "攻防一体",
+      "description": "我方小队获得33%伤害减免，战斗中获得等同于伤害减免的伤害增幅。"
+    },
+    {
+      "strategy_id": "351701",
+      "title": "幸运闪避EX",
+      "description": "我方小队获得25%幸运一击率，受到敌人攻击时，有等同于30%幸运一击率的概率使受到的伤害变为1。"
+    },
+    {
+      "strategy_id": "351801",
+      "title": "羁绊的力量",
+      "description": "每有一个已激活的非独立羁绊，小队就会获得5%伤害增幅和3%伤害减免。"
+    },
+    {
+      "strategy_id": "351901",
+      "title": "定点爆破",
+      "description": "每个波次开始时，【重锤】立即对当前生命值最高的敌人造成999999%基础伤害，最多对首领敌人造成50%生命上限的伤害。"
+    },
+    {
+      "strategy_id": "352101",
+      "title": "乱成一锅粥",
+      "description": "每次进入新节点时，处在备战席最左侧6个位置的角色变为随机的同费用角色。立刻获得5次免费刷新和10金币。"
+    },
+    {
+      "strategy_id": "352102",
+      "title": "乱成一锅粥+",
+      "description": "每次进入新节点时，处在备战席最左侧6个位置的角色变为随机的同费用角色。立刻获得7次免费刷新和14金币。"
+    },
+    {
+      "strategy_id": "352901",
+      "title": "扩张的代价",
+      "description": "团队规模上限提高2，我方小队获得4%伤害减免。战斗失败时，受到的小队生命值伤害变为2倍。"
+    }
+  ],
+  "spot_light_list": [
+    {
+      "id": "100000",
+      "name": "蚁群效应",
+      "desc": "场上每有1个<color=#b4b4b4>1费角色</color>，该角色的前/后台强度提高45%，3星1费提供2份加成。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/249eba296208cb91aebf7da3a4789cbe.png",
+      "tag_list": [
+        {
+          "tag_id": "41",
+          "name": "1费",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140502",
+        "121002",
+        "131502",
+        "100402",
+        "122402",
+        "111202"
+      ]
+    },
+    {
+      "id": "100001",
+      "name": "一瞬提拔",
+      "desc": "该角色若是<color=#b4b4b4>1费角色</color>，在进入战斗前临时提升1星，最高可升至4星。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d8bc12841b560a4acf7676cc2d5d7f04.png",
+      "tag_list": [
+        {
+          "tag_id": "41",
+          "name": "1费",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "40",
+          "name": "升星",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140502",
+        "121002",
+        "131502",
+        "100402",
+        "122402",
+        "111202"
+      ]
+    },
+    {
+      "id": "100002",
+      "name": "双数跃迁",
+      "desc": "该角色若是<color=#6cce9f>2费角色</color>，在进入战斗前临时升至3星。该角色通过合成升至3星时，重选主角光环。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2208fbd0a4f1dd9d941fa342d032f8b3.png",
+      "tag_list": [
+        {
+          "tag_id": "42",
+          "name": "2费",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "40",
+          "name": "升星",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "141002",
+        "150502",
+        "131002",
+        "140102",
+        "122102",
+        "140402"
+      ]
+    },
+    {
+      "id": "100003",
+      "name": "三项冠军",
+      "desc": "该角色若是3星/3费/穿戴3件装备的角色，每满足一条获得10%伤害增幅和8%幸运一击伤害，满足全三项时效果翻倍。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/13a34944c8d43b4d7094283689af1a44.png",
+      "tag_list": [
+        {
+          "tag_id": "43",
+          "name": "3费",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "28",
+          "name": "星级",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "122002",
+        "150602",
+        "140702",
+        "131702",
+        "121202"
+      ]
+    },
+    {
+      "id": "100004",
+      "name": "五冕之王",
+      "desc": "该角色获得30%幸运一击率与幸运一击伤害，若是<color=#ffd471>5费角色</color>，获得2倍。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2e7411472a7fbe13f850fad2cf2f9f78.png",
+      "tag_list": [
+        {
+          "tag_id": "45",
+          "name": "5费",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "9",
+          "name": "幸运",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140202",
+        "121302",
+        "140802",
+        "110702"
+      ]
+    },
+    {
+      "id": "100005",
+      "name": "光环辐射",
+      "desc": "该角色为所有同羁绊角色提供20%幸运一击率，若该羁绊至少有5人，额外获得10%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/1a20e520966c393c46f081e6ab1c73c7.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "130402",
+        "151202",
+        "141302",
+        "604202",
+        "130902",
+        "140302",
+        "140602",
+        "151112"
+      ]
+    },
+    {
+      "id": "100006",
+      "name": "集气勇者",
+      "desc": "每个与该角色同羁绊的角色，都会为当前角色提供15%前/后台强度。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/b66268d5a6b0b42e16b034b5857d3cef.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "110302",
+        "150602",
+        "151302",
+        "131002"
+      ]
+    },
+    {
+      "id": "100007",
+      "name": "天可汗",
+      "desc": "该角色获得20%前后台强度。小队每激活1个非独立羁绊，全队就会获得3%前后台强度，该角色额外获得2倍。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9d38f5cf0ac00ed58c6be74ffd3f6d4c.png",
+      "tag_list": [
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100008",
+      "name": "全阶共鸣",
+      "desc": "该角色的前/后台强度提高70%。当上阵角色中同时包含1/2/3/4/5费角色时，该角色获得35%幸运一击率。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f3ba8ed314c068c8f443befc4beb4350.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "131402",
+        "150402",
+        "121402",
+        "140202",
+        "121302"
+      ]
+    },
+    {
+      "id": "100100",
+      "name": "刷新视界",
+      "desc": "进入新节点时，该角色若参与上次战斗，获得1次免费刷新。\\n刷新时，我方小队前/后台强度提高1%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/733cf60c0f5c0fff1c787f2cced0d208.png",
+      "tag_list": [
+        {
+          "tag_id": "34",
+          "name": "刷新",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "130902",
+        "131302",
+        "130602",
+        "151202",
+        "141202",
+        "122202",
+        "150302",
+        "121102",
+        "110502",
+        "141302",
+        "122502",
+        "150102",
+        "130702"
+      ]
+    },
+    {
+      "id": "100101",
+      "name": "社交达人",
+      "desc": "每刷新2次商店，必定出现1个与该角色任一羁绊相同的其他角色。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/5591ec25c0e6445e5b1186d1e9999466.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100102",
+      "name": "战场学者",
+      "desc": "进入新节点时，该角色若参与上次战斗，获得2经验。\\n商店等级每有1级，我方小队的前/后台强度提高6%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/55dbf1b051f946cd055964690e07a1d6.png",
+      "tag_list": [
+        {
+          "tag_id": "33",
+          "name": "经验",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "130902",
+        "131302",
+        "130602",
+        "151202",
+        "141202",
+        "122202",
+        "150302",
+        "121102",
+        "110502",
+        "141302",
+        "122502",
+        "150102",
+        "130702",
+        "120402",
+        "121002"
+      ]
+    },
+    {
+      "id": "100103",
+      "name": "战场学者·精英",
+      "desc": "进入新节点时，该角色若参与上次战斗，获得4经验。\\n商店等级每有1级，我方小队的前/后台强度提高6%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/48e67e490a4602b532c77b4090eb50b6.png",
+      "tag_list": [
+        {
+          "tag_id": "33",
+          "name": "经验",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121502",
+        "121802",
+        "132102",
+        "800902",
+        "150202",
+        "140902",
+        "121702",
+        "120302",
+        "120802",
+        "141502",
+        "140302",
+        "150702",
+        "140602",
+        "131402",
+        "150402",
+        "100502"
+      ]
+    },
+    {
+      "id": "100104",
+      "name": "自我拷贝",
+      "desc": "每进入N个新节点后，获得自身的一个复制，N等同于自身的费用。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/37a08e1a0456187c874312228a1a2827.png",
+      "tag_list": [
+        {
+          "tag_id": "35",
+          "name": "角色奖励",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100105",
+      "name": "领猎人",
+      "desc": "完美通关时，获得该角色的2个随机同费角色。战斗失败以后，重选主角光环。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/84a8fff379f5ca2d66b3af207bd9b8ac.png",
+      "tag_list": [
+        {
+          "tag_id": "35",
+          "name": "角色奖励",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100106",
+      "name": "刷新视界·进阶",
+      "desc": "进入新节点时，该角色若参与上次战斗，获得1次免费刷新。\\n刷新时，我方小队前/后台强度提高1.5%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/86c6f48ba7614a629154b105a5f5d376.png",
+      "tag_list": [
+        {
+          "tag_id": "34",
+          "name": "刷新",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121502",
+        "121802",
+        "132102",
+        "800902",
+        "150202",
+        "132102",
+        "140902",
+        "121702",
+        "120302",
+        "120802",
+        "141502",
+        "140302",
+        "150702",
+        "140602",
+        "131402",
+        "150402",
+        "100502"
+      ]
+    },
+    {
+      "id": "100107",
+      "name": "与死神赛跑",
+      "desc": "每损失10点小队生命值，该角色获得8%速度增幅，并使我方小队获得4%伤害减免和伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/938c3b4ff3db10907b3c4e466ddf449a.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140902",
+        "150202",
+        "130602"
+      ]
+    },
+    {
+      "id": "100108",
+      "name": "囤金勇者",
+      "desc": "你每拥有1金币，该角色获得2%前/后台强度（最多计入60金币）。该角色获得20%伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/8b3371f30faaf78d92214c666dcb5521.png",
+      "tag_list": [
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "32",
+          "name": "金币",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100109",
+      "name": "未来增援",
+      "desc": "商店内概率刷出2星的该角色。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ff75a97615f26b98118a138a76569773.png",
+      "tag_list": [
+        {
+          "tag_id": "35",
+          "name": "角色奖励",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100110",
+      "name": "高傲巨人",
+      "desc": "该角色造成200%原伤害，上阵该角色占用2团队规模。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d15ea05000abeca01787ab668a823429.png",
+      "tag_list": [
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100111",
+      "name": "炼金术",
+      "desc": "立即扣除20金币。3个节点后，获得40金币，且该角色获得80%前/后台强度。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/98f638bc6f9683c677debab096dd8e75.png",
+      "tag_list": [
+        {
+          "tag_id": "32",
+          "name": "金币",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100112",
+      "name": "狂热连胜",
+      "desc": "完美通关时，该角色获得1层【势不可挡】：提高25%前/后台强度和5%速度增幅。否则，层数减半。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f11d6461631faf9c923a0e303ba040f0.png",
+      "tag_list": [
+        {
+          "tag_id": "51",
+          "name": "连胜",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100200",
+      "name": "全勤底薪",
+      "desc": "进入新节点时，该角色若参与上次战斗，获得2金币。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/901fd7d1a024b68e43cc13f05d47fe6a.png",
+      "tag_list": [
+        {
+          "tag_id": "32",
+          "name": "金币",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100201",
+      "name": "纳米改件",
+      "desc": "进入战斗时，该角色的一件进阶装备临时升级为特权装备。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/617af452e7149db05f0b5dad95d4c784.png",
+      "tag_list": [
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100202",
+      "name": "邀请函",
+      "desc": "获得该角色一个随机羁绊的星徽。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/656ddcde5178fd516873f90c6c08f98f.png",
+      "tag_list": [
+        {
+          "tag_id": "30",
+          "name": "星徽",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100203",
+      "name": "共生战衣",
+      "desc": "该角色卸下所有装备，并穿满不可修改、不可脱下的推荐装备。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/33f298b87d82a89a6a95ae246bb30f13.png",
+      "tag_list": [
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100204",
+      "name": "脆弱杀手",
+      "desc": "该角色的攻击使敌人陷入【脆弱】，受到的伤害提高40%。我方小队攻击【虚弱】敌人时的伤害增幅提高20%。\\n\\n<color=#b4b4b4><i>可通过【闪光手榴弹】获取【虚弱】。</i></color>",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/677ecbee5703fe3bf5c987bd46c56a6f.png",
+      "tag_list": [
+        {
+          "tag_id": "10",
+          "name": "脆弱",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "11",
+          "name": "虚弱",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150702",
+        "140302",
+        "110702",
+        "150402",
+        "151112",
+        "100502"
+      ]
+    },
+    {
+      "id": "100205",
+      "name": "虚弱猎手",
+      "desc": "该角色在场时，敌人陷入【虚弱】，造成的伤害降低7%*该角色费用，且使【脆弱】的敌人受到的伤害提高7%*该角色费用。\\n\\n<color=#b4b4b4><i>可通过【追逐星辰】、【行星钻地弹】获取【脆弱】。</i></color>",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/477a4fda417d71760c099c3b49898654.png",
+      "tag_list": [
+        {
+          "tag_id": "11",
+          "name": "虚弱",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "10",
+          "name": "脆弱",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121502",
+        "150402",
+        "140302",
+        "100502",
+        "150702",
+        "131402",
+        "121402",
+        "141502",
+        "110702",
+        "151112"
+      ]
+    },
+    {
+      "id": "100206",
+      "name": "信心激励",
+      "desc": "该角色对我方目标施放技能后，使其前台强度提高70%，获得20%伤害减免，持续2回合。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/e6730d5ec08e0759ec6c21de5cd372b4.png",
+      "tag_list": [
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121502",
+        "131302",
+        "151112",
+        "141502",
+        "150202",
+        "151202",
+        "800902",
+        "130602",
+        "141202",
+        "140902",
+        "121702"
+      ]
+    },
+    {
+      "id": "100207",
+      "name": "飞速进场",
+      "desc": "该角色在战斗开始时激活终结技，并为我方小队提供15%伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/10ccaee9232dc03411bb862a4a1251fa.png",
+      "tag_list": [
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "8",
+          "name": "能量",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121502",
+        "130902",
+        "141502",
+        "121802",
+        "150202",
+        "151112"
+      ]
+    },
+    {
+      "id": "100208",
+      "name": "刀具收藏家",
+      "desc": "获得不可脱下的【碎星斩舰刀改件】，全队每个【折叠小刀】装备，使该角色获得10%前台强度。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/238a202418088781710f869dc1653b05.png",
+      "tag_list": [
+        {
+          "tag_id": "4",
+          "name": "前台",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "122002",
+        "141002",
+        "140502",
+        "140202",
+        "150502",
+        "151002",
+        "121302",
+        "151302",
+        "131002",
+        "130802",
+        "110302",
+        "140702",
+        "140802",
+        "110702"
+      ]
+    },
+    {
+      "id": "100209",
+      "name": "枪炮收藏家",
+      "desc": "获得不可脱下的【天基轨道炮改件】，全队每个【和平手枪】装备，使该角色获得10%后台强度。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/5033ca8e88af08e3faa6729d4d9ac151.png",
+      "tag_list": [
+        {
+          "tag_id": "5",
+          "name": "后台",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "141002",
+        "150502",
+        "131702",
+        "140702",
+        "140802",
+        "110702"
+      ]
+    },
+    {
+      "id": "100300",
+      "name": "战技点奖池",
+      "desc": "获得不可脱下的【战技点奖券】改件，消耗战技点时可以抽奖获得随机效果。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/880da2e02f2ec891b5141b792c7f55e6.png",
+      "tag_list": [
+        {
+          "tag_id": "22",
+          "name": "战技",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121302",
+        "140502"
+      ]
+    },
+    {
+      "id": "100301",
+      "name": "终结火铳",
+      "desc": "该角色施放终结技后，发射5个火球，每次施放额外发射1个火球。\\n每个【火球】对随机敌方单体造成等同于该角色500%攻击力的火属性伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/392ed6d34d52a7edc5fc8933501ccd80.png",
+      "tag_list": [
+        {
+          "tag_id": "23",
+          "name": "终结技",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150502",
+        "151002",
+        "122102"
+      ]
+    },
+    {
+      "id": "100302",
+      "name": "渐冻寒潮",
+      "desc": "计入该角色造成的持续伤害，累计值达1000%基础伤害时，【渐冻寒潮】造成等同于600%基础伤害的冰属性伤害，由全体敌方目标分摊。\\n【渐冻寒潮】触发后，后续触发所需累计值提高500%基础伤害，并额外造成300%基础伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/172e61a22b73d4f0cdb453fc4a8d064d.png",
+      "tag_list": [
+        {
+          "tag_id": "25",
+          "name": "持续伤害",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "141002",
+        "110302",
+        "121002",
+        "100502"
+      ]
+    },
+    {
+      "id": "100303",
+      "name": "疾行派对客",
+      "desc": "该角色获得25%速度增幅，【阿哈时刻】开始时获得50笑点。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/8dec73e24a884b69df9d017810e122e3.png",
+      "tag_list": [
+        {
+          "tag_id": "26",
+          "name": "欢愉",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150602",
+        "150202",
+        "130602",
+        "150102",
+        "151112"
+      ]
+    },
+    {
+      "id": "100304",
+      "name": "追忆回唤者",
+      "desc": "该角色获得50%前/后台强度，战斗中每召唤一次忆灵，该角色及其忆灵额外获得20%前/后台强度。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/cb46efab4f6397029344bf59a2545950.png",
+      "tag_list": [
+        {
+          "tag_id": "27",
+          "name": "忆灵",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140702",
+        "141302"
+      ]
+    },
+    {
+      "id": "100305",
+      "name": "伤痕击破者",
+      "desc": "该角色的击破效率提高40%，触发击破效果时获得4%击破伤害增幅，可叠加20层。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/4675d933129d3e709a0182427720399e.png",
+      "tag_list": [
+        {
+          "tag_id": "14",
+          "name": "击破",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "131002",
+        "131702",
+        "131502",
+        "121402"
+      ]
+    },
+    {
+      "id": "100306",
+      "name": "乱披风拳法",
+      "desc": "该角色普攻时获得10%【连击率】，且在普攻后获得8%速度增幅和伤害增幅，可叠加99层。\\n自动战斗时，该角色会优先施放普攻。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f666ab0a58e54b7bd636f50051d55000.png",
+      "tag_list": [
+        {
+          "tag_id": "21",
+          "name": "普攻",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140202",
+        "150602",
+        "120502"
+      ]
+    },
+    {
+      "id": "100307",
+      "name": "毒药专家",
+      "desc": "该角色使敌人陷入负面状态时，也使其陷入【解构】：受到伤害后，额外受到1次等同于该伤害32%的真实伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/42c3fef4baea65c665bbacfd038fd69c.png",
+      "tag_list": [
+        {
+          "tag_id": "19",
+          "name": "真实伤害",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121802",
+        "130702",
+        "100502",
+        "110502"
+      ]
+    },
+    {
+      "id": "100400",
+      "name": "天选幸运儿",
+      "desc": "获得45%幸运一击率。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f0b3ec3a5bfb98c77c09905a792fc44b.png",
+      "tag_list": [
+        {
+          "tag_id": "9",
+          "name": "幸运",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150602",
+        "150502",
+        "151002",
+        "121302",
+        "151302",
+        "130802",
+        "140702",
+        "140802",
+        "121202"
+      ]
+    },
+    {
+      "id": "100401",
+      "name": "涡轮增压",
+      "desc": "获得20%速度增幅。战斗中，该角色每有100速度，前/后台强度提高6%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/7ef6ef583da8f0323de49f7e7fbfdafd.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140502",
+        "140202",
+        "140802",
+        "140102"
+      ]
+    },
+    {
+      "id": "100402",
+      "name": "遇强则强",
+      "desc": "每有10敌人难度，该角色的前/后台强度提高5%；达到60/120/160敌人难度时，该加成翻倍。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/dd327838f9892bd32a5718c2a99c566f.png",
+      "tag_list": [
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "46",
+          "name": "敌人难度",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100403",
+      "name": "前台专家",
+      "desc": "该角色获得40%前台强度。战斗中，前台强度额外提高，等同于原前台强度提高百分比的40%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ee838f31602da728bf47cca61e46def4.png",
+      "tag_list": [
+        {
+          "tag_id": "4",
+          "name": "前台",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "122002",
+        "141002",
+        "140502",
+        "140202",
+        "150602",
+        "150502",
+        "151002",
+        "121302",
+        "151302",
+        "131002",
+        "130802",
+        "110302",
+        "140702",
+        "140802",
+        "110702"
+      ]
+    },
+    {
+      "id": "100404",
+      "name": "后台专家",
+      "desc": "该角色获得40%后台强度。战斗中，后台强度额外提高，等同于原后台强度提高百分比的40%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/751819023262c9dab90f9c1eabd391d6.png",
+      "tag_list": [
+        {
+          "tag_id": "5",
+          "name": "后台",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "141002",
+        "150502",
+        "131702",
+        "140702",
+        "140802",
+        "110702"
+      ]
+    },
+    {
+      "id": "100405",
+      "name": "花团锦簇",
+      "desc": "该角色获得40%生命增幅，每携带一个【生命之花】装备，额外提高15%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/815e9293fa41d35c1e809ff1ab966e93.png",
+      "tag_list": [
+        {
+          "tag_id": "18",
+          "name": "生命",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121202",
+        "150702",
+        "120502",
+        "140702",
+        "140402"
+      ]
+    },
+    {
+      "id": "100406",
+      "name": "如履添翼",
+      "desc": "该角色获得30%速度增幅，每携带一个【轮滑鞋】装备，额外提高10%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/33e12b31177f964309193b3a9f48148d.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140202",
+        "150602",
+        "140902",
+        "150202",
+        "151302",
+        "130602"
+      ]
+    },
+    {
+      "id": "100407",
+      "name": "终结精英",
+      "desc": "该角色获得30%伤害增幅和50%终结技伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/0dc661a9af9373e36c75d0e6bea3099c.png",
+      "tag_list": [
+        {
+          "tag_id": "23",
+          "name": "终结技",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150502",
+        "151002"
+      ]
+    },
+    {
+      "id": "100408",
+      "name": "重甲护卫",
+      "desc": "小队获得15%伤害减免，该角色每携带一个【量产型装甲】装备，小队获得6%伤害减免。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/6e5f7f402f52f09288cb94c5064c1ed5.png",
+      "tag_list": [
+        {
+          "tag_id": "2",
+          "name": "生存",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150302",
+        "130402",
+        "120802"
+      ]
+    },
+    {
+      "id": "100409",
+      "name": "天才医师",
+      "desc": "该角色获得40%治疗强度和护盾强度，我方小队获得20%生命增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/a96c4971f5984c91e4613a50e24f57c0.png",
+      "tag_list": [
+        {
+          "tag_id": "2",
+          "name": "生存",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140902",
+        "121702",
+        "120802",
+        "120302",
+        "121102",
+        "110502",
+        "122202",
+        "150302"
+      ]
+    },
+    {
+      "id": "100410",
+      "name": "守阵者",
+      "desc": "该角色获得20%治疗强度和护盾强度，在前台时分摊30%前台角色受到的伤害，受到致命攻击时，不会受到行动值惩罚。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/bcd75c68b7992c04ed209749c42c0a5c.png",
+      "tag_list": [
+        {
+          "tag_id": "2",
+          "name": "生存",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "4",
+          "name": "前台",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140402",
+        "130402",
+        "140902",
+        "120302",
+        "122202"
+      ]
+    },
+    {
+      "id": "100411",
+      "name": "速度专家",
+      "desc": "该角色获得20%速度增幅，且速度增幅额外提高，等同于原速度增幅提高百分比的40%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/45a780d0edc38ae79f502a2d5180acf4.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140202",
+        "150602",
+        "140902",
+        "150202",
+        "151302",
+        "130602"
+      ]
+    },
+    {
+      "id": "100412",
+      "name": "薪火相传",
+      "desc": "该角色熄火，造成的攻击只能造成1点伤害。战斗中，该角色每有1点金币价值，前后台1号位获得10%前/后台强度。真实伤害不会被降低。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/48aeac0c5e04af65cc842b7970536466.png",
+      "tag_list": [
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100413",
+      "name": "强化激素",
+      "desc": "该角色使我方角色行动提前后，所有行动提前的角色获得40%伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/3ee509c6aab788c68b781e212a4deadb.png",
+      "tag_list": [
+        {
+          "tag_id": "48",
+          "name": "行动提前",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "131302",
+        "130902",
+        "130602"
+      ]
+    },
+    {
+      "id": "100414",
+      "name": "普攻精英",
+      "desc": "该角色获得30%伤害增幅和50%普攻伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/438b98bb959349f31718f16ac1d6b2d5.png",
+      "tag_list": [
+        {
+          "tag_id": "21",
+          "name": "普攻",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121302",
+        "140202"
+      ]
+    },
+    {
+      "id": "100415",
+      "name": "战技精英",
+      "desc": "该角色获得30%伤害增幅和50%战技伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/392cacb2d20ff740cb2f23cbb1fd41d9.png",
+      "tag_list": [
+        {
+          "tag_id": "22",
+          "name": "战技",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150702",
+        "151002",
+        "140502",
+        "140102",
+        "121202",
+        "140402"
+      ]
+    },
+    {
+      "id": "100600",
+      "name": "收割者",
+      "desc": "该角色攻击敌方目标后，若其生命值百分比少于12%，将其【斩杀】。获得12%伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/5cacbde36398de42d3f362a3a7fb032e.png",
+      "tag_list": [
+        {
+          "tag_id": "20",
+          "name": "斩杀",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100705",
+      "name": "从师",
+      "desc": "获得羁绊【从师】：",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/21ebf57a4e6064a562dce7569e936baf.png",
+      "tag_list": [
+        {
+          "tag_id": "50",
+          "name": "特殊羁绊",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "100800",
+      "name": "连携追击",
+      "desc": "获得羁绊【连携追击】。仅限【追击】角色生效：",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9bdc746a70c32edf128416d0fae1605a.png",
+      "tag_list": [
+        {
+          "tag_id": "50",
+          "name": "特殊羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "13",
+          "name": "追击",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "111202",
+        "122002",
+        "122402",
+        "130402",
+        "130902",
+        "150402",
+        "140302"
+      ]
+    },
+    {
+      "id": "100801",
+      "name": "星狩誓言",
+      "desc": "获得羁绊【星狩誓言】：",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/7bea158e48c0dad8069d70a69d6d8711.png",
+      "tag_list": [
+        {
+          "tag_id": "50",
+          "name": "特殊羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150402",
+        "131402",
+        "151302",
+        "131702",
+        "150202",
+        "111202"
+      ]
+    },
+    {
+      "id": "100900",
+      "name": "黑洞引力",
+      "desc": "该角色施放终结技后，使战斗结束的<color=#f29e38ff>倒计时延后</color>10行动值，单场战斗最多触发3次。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/e0996987919fe2ccaa670a7d67e40563.png",
+      "tag_list": [
+        {
+          "tag_id": "39",
+          "name": "倒计时",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "121702",
+        "141502",
+        "140302",
+        "150702"
+      ]
+    },
+    {
+      "id": "110001",
+      "name": "双数成阵",
+      "desc": "该角色若是<color=#6cce9f>2费角色</color>，获得30%伤害增幅，场上每个<color=#6cce9f>2费角色</color>星级使该角色获得20%前/后台强度。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/425acf45b7f085a4ef08e71b39c8d15b.png",
+      "tag_list": [
+        {
+          "tag_id": "42",
+          "name": "2费",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "28",
+          "name": "星级",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "141002",
+        "150502",
+        "131002",
+        "140102",
+        "122102",
+        "140402"
+      ]
+    },
+    {
+      "id": "110002",
+      "name": "意志传承",
+      "desc": "该角色变为更高1费的同星级角色，主角光环改为这名新角色拥有。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/86fa69434bb352c14c51f5b4f6c00eed.png",
+      "tag_list": [
+        {
+          "tag_id": "38",
+          "name": "变形",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "110101",
+      "name": "富翁的梦泡",
+      "desc": "利息上限提升至8金币。每赚1利息，有15%概率获得1次免费刷新。\\n每有1金币，该角色的前/后台强度提高1%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/be3d9f4e02ab12c247e9ecdcf05e31f0.png",
+      "tag_list": [
+        {
+          "tag_id": "34",
+          "name": "刷新",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "110102",
+      "name": "闭关",
+      "desc": "该角色暂时离场，在进入一定数量节点后，获得三星版本的该角色。角色费用越高，所需时间越长。\\n\\n<color=#b4b4b4><i>该角色将退回备战席，不可出售，同名角色不可上阵。此光环对特殊星级角色不生效。</i></color>",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/a970421aae6e213cd68ce0cda127b6b1.png",
+      "tag_list": [
+        {
+          "tag_id": "35",
+          "name": "角色奖励",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "110201",
+      "name": "弑君王储",
+      "desc": "该角色获得35%幸运一击伤害，在遭遇/首领节点，额外获得35%幸运一击伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/37c32d805cc1e4c19d087a253f241cae.png",
+      "tag_list": [
+        {
+          "tag_id": "9",
+          "name": "幸运",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "29",
+          "name": "精英",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150602",
+        "150502",
+        "151002",
+        "121302",
+        "151302",
+        "130802",
+        "140702",
+        "140802",
+        "121202"
+      ]
+    },
+    {
+      "id": "110202",
+      "name": "靴履收藏家",
+      "desc": "获得不可脱下的【反重力皮靴改件】，全队每个【轮滑鞋】装备，使该角色获得5%速度增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/53859ec1341acda8a06a8bb9c143b4cb.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "31",
+          "name": "装备",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140202",
+        "140902",
+        "150202",
+        "151302",
+        "130602"
+      ]
+    },
+    {
+      "id": "110301",
+      "name": "逐日",
+      "desc": "该角色每行动7次，行动提前100%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d017c6a50692e1c66f2cc733887540c8.png",
+      "tag_list": [
+        {
+          "tag_id": "12",
+          "name": "连续行动",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140202",
+        "122002",
+        "150602",
+        "111202",
+        "150402",
+        "140302"
+      ]
+    },
+    {
+      "id": "110302",
+      "name": "枯海行者",
+      "desc": "该角色无法恢复能量，获得70%前/后台强度和35%伤害增幅。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2d9a041b43e75d1860f664df26db5280.png",
+      "tag_list": [
+        {
+          "tag_id": "24",
+          "name": "特殊能量",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150602",
+        "122002",
+        "130802",
+        "140702",
+        "140802"
+      ]
+    },
+    {
+      "id": "110303",
+      "name": "心灵激励师",
+      "desc": "该角色获得20%速度增幅。该角色行动后，使我方小队的伤害增幅提高3%，可叠加99层。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/59b62a377e80f0fab971abe8ac7c5121.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "3",
+          "name": "辅助",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150402",
+        "140302",
+        "121502",
+        "131302",
+        "141202",
+        "150202",
+        "130602",
+        "140902",
+        "131002"
+      ]
+    },
+    {
+      "id": "110801",
+      "name": "四维狂潮",
+      "desc": "获得羁绊【四维狂潮】。仅限<color=#927fe7>4费角色</color>生效：",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/146d3de988a6fd6821153a5389e1eff0.png",
+      "tag_list": [
+        {
+          "tag_id": "50",
+          "name": "特殊羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "44",
+          "name": "4费",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "151002",
+        "151302",
+        "130802",
+        "110302",
+        "150702"
+      ]
+    },
+    {
+      "id": "110901",
+      "name": "闪耀蓝星",
+      "desc": "所有主角获得【闪耀蓝星】：获得15%前/后台强度和5%速度增幅。进入新节点时，【闪耀蓝星】持有者为另一角色提供【闪耀蓝星】。每个【闪耀蓝星】持有者使该角色额外获得1层加成。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/10f8dfc93fff707a094185e3586c4674.png",
+      "tag_list": [
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "110902",
+      "name": "替罪羊",
+      "desc": "该角色在你战斗失败时被出售，该场战斗视为胜利，重选主角光环。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/450237a447cc837ad9f732b8be8e6fdd.png",
+      "tag_list": [
+        {
+          "tag_id": "37",
+          "name": "失败保险",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "120101",
+      "name": "自我拷贝·过载",
+      "desc": "每进入N个新节点后，获得自身的一个复制，N等同于自身的费用。\\n获得该角色时有30%概率额外获得1次。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/bc766fbff4d87d1bdb6fb72a51808ab3.png",
+      "tag_list": [
+        {
+          "tag_id": "35",
+          "name": "角色奖励",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "120102",
+      "name": "社交大师",
+      "desc": "每刷新2次商店，必定出现1个与该角色任一羁绊相同的其他角色。场上每个同羁绊角色使该角色的伤害增幅提高7%。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/78f991668a734939cd5997bf73c6d230.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "120201",
+      "name": "幸运勇者",
+      "desc": "该角色获得20%幸运一击率。战斗中，获得等同于幸运一击率的幸运一击伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/410235b01e7cd4fadc374d2e694fe505.png",
+      "tag_list": [
+        {
+          "tag_id": "9",
+          "name": "幸运",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "150602",
+        "150502",
+        "151002",
+        "121302",
+        "151302",
+        "130802",
+        "140702",
+        "140802",
+        "121202"
+      ]
+    },
+    {
+      "id": "120202",
+      "name": "苦战寻宝",
+      "desc": "该角色获得20%治疗强度和护盾强度，遭遇节点中额外获得1份遭遇奖励。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/a1f0cab54d5b3a4fd99ed09f09319768.png",
+      "tag_list": [
+        {
+          "tag_id": "2",
+          "name": "生存",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "36",
+          "name": "精英奖励",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140902",
+        "121702",
+        "120802",
+        "120302",
+        "121102",
+        "110502",
+        "122202",
+        "150302"
+      ]
+    },
+    {
+      "id": "120401",
+      "name": "灵魂打击者",
+      "desc": "该角色造成伤害后，额外造成1次等同于原伤害50%的真实伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/7bbe71875668788cf3270c16080007b4.png",
+      "tag_list": [
+        {
+          "tag_id": "19",
+          "name": "真实伤害",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "122002",
+        "140502",
+        "140202",
+        "150602",
+        "150502",
+        "151002",
+        "121302",
+        "151302",
+        "130802",
+        "140802",
+        "110702",
+        "140102",
+        "100402",
+        "122402",
+        "111202",
+        "121202"
+      ]
+    },
+    {
+      "id": "120901",
+      "name": "风眼骑士",
+      "desc": "该角色获得120%速度增幅。该角色在回合开始时，受到等同于生命上限60%的固定数值风属性附加伤害。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f95439feb4ded83ea2ea735e087c44fb.png",
+      "tag_list": [
+        {
+          "tag_id": "7",
+          "name": "速度",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "47",
+          "name": "自伤",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140402",
+        "120502",
+        "140702",
+        "140802"
+      ]
+    },
+    {
+      "id": "120902",
+      "name": "救世主",
+      "desc": "该角色失去所有羁绊，成为【救世主】：",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/b3d06781acab18618567bcac03ebb393.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "140802"
+      ]
+    },
+    {
+      "id": "130101",
+      "name": "命定主角",
+      "desc": "该角色的羁绊提供2个羁绊计数。\\n\\n<color=#b4b4b4><i>仅对可获取星徽的羁绊生效</i></color>",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/cae1f95903b000bd33dcdaee4116f60e.png",
+      "tag_list": [
+        {
+          "tag_id": "6",
+          "name": "羁绊",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": []
+    },
+    {
+      "id": "130501",
+      "name": "仰卧起坐",
+      "desc": "该角色的生命值降低至生命上限的30%以下时，同时触发以下效果：\\n①回复全部生命值。\\n②激活终结技。\\n③获得1个额外回合。\\n④伤害增幅提高30%，可叠加。\\n该效果每场战斗最多触发3次。",
+      "icon": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2abf336623b7e8e618a3a4680fc337c9.png",
+      "tag_list": [
+        {
+          "tag_id": "2",
+          "name": "生存",
+          "color": "#474aae"
+        },
+        {
+          "tag_id": "1",
+          "name": "输出",
+          "color": "#474aae"
+        }
+      ],
+      "suitable_role_list": [
+        "122102",
+        "140402",
+        "110702",
+        "120502",
+        "150702",
+        "121202",
+        "140702"
+      ]
+    }
+  ]
+}

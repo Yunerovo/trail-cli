@@ -81,6 +81,51 @@ def test_wait_timeout_env_and_no_wait_precedence(cli_runner, fake_daemon_client,
     assert client.calls[0]["control"] == {"mode": "async_wait", "wait_timeout": 0.0, "side_effect_stage": "none"}
 
 
+def test_portal_select_without_guide_stops_at_season_two_choice(cli_runner, fake_daemon_client, tmp_path):
+    client = fake_daemon_client({"cw.portal.select": build_success_response(
+        request_id="season-portal", data={"card_idx": 2, "status": "observed", "stage": "voyage_companion"},
+        screenshot=".trail/shots/season-portal.png",
+    )})
+    result = cli_runner.invoke(app, ["cw", "portal", "select", "--session", SESSION_ID, "--card-idx", "2", "--no-guide"])
+
+    assert result.exit_code == 0
+    assert "info status=observed stage=voyage_companion" in result.stdout
+    assert "handoff_skill=trail-cw-prep" not in result.stdout
+    _assert_single_call(client, method="cw.portal.select", payload={"card_idx": 2, "apply_guide": False}, tmp_path=tmp_path)
+
+
+def test_battle_run_can_leave_rewards_for_agent(cli_runner, fake_daemon_client, tmp_path):
+    client = fake_daemon_client({"cw.battle.run": build_success_response(
+        request_id="season-battle", data={"status": "completed", "stage": "plot_armor"},
+    )})
+    result = cli_runner.invoke(app, ["cw", "battle", "run", "--session", SESSION_ID, "--no-auto-collect"])
+
+    assert result.exit_code == 0
+    assert "status=completed stage=plot_armor" in result.stdout
+    _assert_single_call(client, method="cw.battle.run", payload={"timeout": 90, "collect_crystals": False}, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "arguments, method, payload, data, summary",
+    [
+        (["event", "drag-aura-role", "--source", "back:2"], "cw.event.drag_aura_role",
+         {"source": "back:1"}, {"value": "plot_armor", "entries": [], "source": "back:2", "verified": True},
+         "stage=plot_armor count=0 source=back:2 verified=1"),
+        (["replenish", "refresh"], "cw.replenish.refresh", {},
+         {"value": "replenish", "entries": [], "refresh_remaining": 0}, "stage=replenish count=0 refresh_remaining=0"),
+    ],
+)
+def test_cw_page_actions_forward_and_render_verified_result(
+    cli_runner, fake_daemon_client, tmp_path, arguments, method, payload, data, summary,
+):
+    shot = ".trail/shots/action.png"
+    client = fake_daemon_client({method: build_success_response(request_id="page-action", data=data, screenshot=shot)})
+    result = cli_runner.invoke(app, ["cw", *arguments, "--session", SESSION_ID])
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == _expected_lines(f"ok {method} {summary}", screenshot=shot)
+    _assert_single_call(client, method=method, payload=payload, tmp_path=tmp_path)
+
+
 def test_cw_stage_detect_renders_stage_and_shot(cli_runner, fake_daemon_client, tmp_path):
 
     client = fake_daemon_client(
@@ -101,6 +146,21 @@ def test_cw_stage_detect_renders_stage_and_shot(cli_runner, fake_daemon_client, 
         screenshot=".trail/shots/req-cw-stage-detect.png",
     )
     _assert_single_call(client, method="cw.stage.detect", payload={}, tmp_path=tmp_path)
+
+
+def test_cw_stage_read_renders_choice_text(cli_runner, fake_daemon_client, tmp_path):
+    client = fake_daemon_client({"cw.stage.read": build_success_response(
+        request_id="season-text", screenshot=".trail/shots/season-text.png",
+        data={"value": "plot_armor", "entries": [{"text": "选择主角", "bounds": [20, 30, 80, 45]}]},
+    )})
+    result = cli_runner.invoke(app, ["cw", "stage", "read", "--session", SESSION_ID])
+
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == _expected_lines(
+        "ok cw.stage.read stage=plot_armor count=1", screenshot=".trail/shots/season-text.png",
+        body=['text idx=1 text=选择主角 box="20,30,60,15"'],
+    )
+    _assert_single_call(client, method="cw.stage.read", payload={}, tmp_path=tmp_path)
 
 
 def test_cw_enter_renders_home_summary_and_shot(cli_runner, fake_daemon_client, tmp_path):
@@ -774,6 +834,42 @@ def test_cw_shop_buy_exp_maps_to_canonical_command(cli_runner, fake_daemon_clien
     _assert_single_call(client, method="cw.shop.buy_exp", payload={}, tmp_path=tmp_path)
 
 
+@pytest.mark.parametrize(("verb", "flags", "method", "options"), [
+    ("plan-exp", [], "cw.shop.plan_exp", {"target_level": 9}),
+    ("buy-exp", ["--max-gold", "84"], "cw.shop.buy_exp_to_level", {"target_level": 9, "max_gold": 84}),
+])
+def test_cw_experience_target_rpcs(cli_runner, fake_daemon_client, tmp_path, verb, flags, method, options):
+    status = "insufficient_gold" if verb == "plan-exp" else "budget_exceeded"
+    client = fake_daemon_client({
+        method: build_success_response(
+            request_id="req-exp",
+            data={
+                "status": status, "target_level": 9, "level": 8, "exp": "4/72", "coins": 76,
+                "cost_per_purchase": 5, "purchases_required": 17, "gold_required": 85,
+                "purchases_verified": 0, "gold_spent": 0,
+            },
+            screenshot=".trail/shots/req-exp.jpg",
+        )
+    })
+
+    result = cli_runner.invoke(app, ["cw", "shop", verb, "--session", SESSION_ID, "--target-level", "9", *flags])
+    assert result.exit_code == 0
+    assert result.stdout.startswith(f"ok {method} status={status} target_level=9\n")
+    assert "coins=76 cost_per_purchase=5 purchases_required=17 gold_required=85" in result.stdout
+    if verb == "buy-exp":
+        assert "purchases_verified=0 gold_spent=0" in result.stdout
+    _assert_single_call(client, method=method, payload=options, tmp_path=tmp_path)
+
+
+def test_cw_targeted_buy_exp_rejects_yaml_before_rpc(cli_runner, fake_daemon_client):
+    client = fake_daemon_client({})
+    result = cli_runner.invoke(
+        app, ["--format", "yaml", "cw", "shop", "buy-exp", "--session", SESSION_ID, "--target-level", "9"],
+    )
+    assert "fail cw.shop.buy_exp_to_level code=OUTPUT_FORMAT_NOT_SUPPORTED" in result.stdout
+    assert client.calls == []
+
+
 def test_cw_equipment_prepare_maps_to_canonical_command(cli_runner, fake_daemon_client, tmp_path):
     client = fake_daemon_client(
         {
@@ -835,6 +931,29 @@ def test_cw_equipment_read_maps_to_canonical_command_and_supports_yaml(cli_runne
     assert client.calls[0]["method"] == "cw.equipment.read"
     _assert_single_call(client, method="cw.equipment.read", payload={}, tmp_path=tmp_path)
     _assert_single_call(yaml_client, method="cw.equipment.read", payload={}, tmp_path=tmp_path)
+
+
+def test_cw_equipment_read_consumables_are_separate_from_equipment(cli_runner, fake_daemon_client, tmp_path):
+    client = fake_daemon_client(
+        {
+            "cw.equipment.read": build_success_response(
+                request_id="req-equipment-consumables",
+                data={
+                    "count": 0, "uncertain": 0, "empty": 60, "items": [],
+                    "backend": "vector", "layout": "season_2",
+                    "consumables": [{"name": "拆装扳手", "count": 1, "center": {"x": 1858, "y": 165}}],
+                },
+            )
+        }
+    )
+
+    result = cli_runner.invoke(app, ["--format", "yaml", "cw", "equipment", "read", "--consumables", "--session", SESSION_ID])
+
+    assert result.exit_code == 0
+    assert result.stdout.splitlines()[0] == "ok cw.equipment.read count=0 uncertain=0 empty=60"
+    assert 'item kind=consumable name=拆装扳手 count=1 center="1858,165"' in result.stdout
+    assert "consumables:\n- name: 拆装扳手" in result.stdout
+    _assert_single_call(client, method="cw.equipment.read", payload={"read_consumables": True}, tmp_path=tmp_path)
 
 
 def test_cw_equipment_compose_rpc_contract(cli_runner, fake_daemon_client, tmp_path):
@@ -1225,6 +1344,32 @@ def test_cw_hand_sell_renders_slot_counts_and_shot(cli_runner, fake_daemon_clien
 
 def test_cw_slots_place_one_is_removed():
     assert "place-one" not in _registered_command_names(slots_app)
+
+
+def test_cw_hand_open_box_returns_position_and_equipment_choices(cli_runner, fake_daemon_client, tmp_path):
+    client = fake_daemon_client({
+        "cw.hand.open_box": build_success_response(
+            request_id="req-box",
+            data={
+                "pos": "hand:4", "title": "简易武装箱",
+                "options": [
+                    {"idx": 1, "name": "光能电池", "center": {"x": 590, "y": 229}},
+                    {"idx": 2, "name": None, "center": {"x": 880, "y": 229}},
+                ],
+            },
+            screenshot=".trail/shots/req-box.jpg",
+        ),
+    })
+
+    result = cli_runner.invoke(app, ["cw", "hand", "open-box", "--session", SESSION_ID, "--slot", "4"])
+
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == _expected_lines(
+        "ok cw.hand.open_box pos=hand:4 name=简易武装箱 count=2",
+        screenshot=".trail/shots/req-box.jpg",
+        body=['opt idx=1 name=光能电池 center="590,229"', 'opt idx=2 name=unknown center="880,229"'],
+    )
+    _assert_single_call(client, method="cw.hand.open_box", payload={"slot": 3}, tmp_path=tmp_path)
 
 
 def test_cw_slots_place_requires_at_least_one_action(cli_runner, fake_daemon_client):

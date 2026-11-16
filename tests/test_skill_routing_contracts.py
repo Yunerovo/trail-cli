@@ -464,7 +464,8 @@ def test_workflow_handoff_registry_has_expected_scene_and_stage_mappings() -> No
         "handoff_reason": "preparation_stage_entered",
     }
     assert "statuses" not in registry["commands"]["cw.enter"]
-    assert "statuses" not in registry["commands"]["cw.portal.select"]
+    portal = registry["commands"]["cw.portal.select"]
+    assert portal["statuses"]["observed"]["stages"] == {"preparation": portal["default"]}
     assert registry["commands"]["cw.battle.run"]["statuses"]["completed"]["stages"]["preparation"] == {
         "handoff_skill": "trail-cw-prep",
         "handoff_strength": "strong",

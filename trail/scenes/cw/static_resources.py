@@ -16,6 +16,7 @@ from trail.core.errors import TrailError
 from trail.scenes.cw.equipment_resources import (
     EQUIPMENT_ICON_CACHE_RELATIVE,
     EquipmentCatalogEntry,
+    is_privilege_equipment,
     safe_equipment_cache_segment,
 )
 
@@ -676,8 +677,14 @@ def _validate_equipment_feature_manifest_keys(
     feature_keys = _equipment_cache_keys(equipment_features, "features")
     if manifest_keys == feature_keys:
         return
-    missing = sorted(manifest_keys - feature_keys)
+    privilege_keys = {
+        item["cache_key"] for item in equipment_manifest["items"]
+        if is_privilege_equipment(item.get("name", ""), item.get("category_name"))
+    }
+    missing = sorted(manifest_keys - feature_keys - privilege_keys)
     extra = sorted(feature_keys - manifest_keys)
+    if not missing and not extra:
+        return
     details = []
     if missing:
         details.append(f"missing={','.join(missing)}")

@@ -292,18 +292,21 @@ def test_summarize_portal_cards_groups_three_lanes_and_merges_rows():
     assert cards == [
         {
             "card_idx": 1,
+            "portal_id": "lane1-win",
             "portal_title": "Beta Alpha",
             "portal_description": "Gamma",
             "score": pytest.approx(1.0),
         },
         {
             "card_idx": 2,
+            "portal_id": "lane2",
             "portal_title": "Delta Epsilon",
             "portal_description": "Zeta",
             "score": pytest.approx(1.0),
         },
         {
             "card_idx": 3,
+            "portal_id": "lane3",
             "portal_title": "Eta Theta",
             "portal_description": "Iota",
             "score": pytest.approx(1.0),
@@ -346,7 +349,7 @@ def test_summarize_portal_cards_uses_higher_of_title_and_title_plus_description_
     assert cards[0]["score"] == pytest.approx(expected_combined_score)
 
 
-def test_summarize_portal_cards_breaks_ties_by_portal_id_when_scores_are_equal():
+def test_summarize_portal_cards_leaves_shared_title_unresolved_without_description():
     portal_list = [
         {"portal_id": "zzz", "title": "Alpha", "description": "Portal Z"},
         {"portal_id": "aaa", "title": "Alpha", "description": "Portal A"},
@@ -358,10 +361,15 @@ def test_summarize_portal_cards_breaks_ties_by_portal_id_when_scores_are_equal()
 
     assert cards[0] == {
         "card_idx": 1,
+        "portal_id": "",
         "portal_title": "Alpha",
-        "portal_description": "Portal A",
-        "score": pytest.approx(1.0),
+        "portal_description": "",
+        "score": pytest.approx(0.0),
     }
+    with_description = summarize_portal_cards(
+        [*pieces, _dict_piece("Portal Z", left=60, top=90, width=160)], portal_list,
+    )
+    assert with_description[0]["portal_id"] == "zzz"
 
 
 def test_summarize_portal_cards_returns_empty_summary_for_lane_without_text():
@@ -385,7 +393,7 @@ def test_summarize_portal_cards_returns_empty_summary_for_lane_without_text():
         "portal_description": "",
         "score": pytest.approx(0.0),
     }
-    assert all(set(card) == {"card_idx", "portal_title", "portal_description", "score"} for card in cards)
+    assert set(cards[0]) == {"card_idx", "portal_id", "portal_title", "portal_description", "score"}
 
 
 def test_summarize_portal_cards_marks_card_new_when_collection_match_hits_lane():
@@ -1504,6 +1512,7 @@ def test_cw_start_from_home_advances_to_invest_and_persists_portal_snapshot(tmp_
     assert persisted.scene_state["cw"]["slots"] == {"stale": True, "hand": ["希儿"]}
     assert persisted.scene_state["cw"]["shop"] == {"stale": True, "opened": True}
     assert persisted.scene_state["cw"]["sell_plan"] == {"stale": True}
+    assert persisted.scene_state["cw"]["run_facts"]["opening"] is None
     assert status["final_state"] == "completed"
     assert runtime.ocr_calls == [
         {},
@@ -1512,6 +1521,7 @@ def test_cw_start_from_home_advances_to_invest_and_persists_portal_snapshot(tmp_
         {"capture": {"from_x": 520, "from_y": 420, "to_x": 1160, "to_y": 600}},
         {},
         {"capture": {"from_x": 520, "from_y": 420, "to_x": 1160, "to_y": 600}},
+        {},
         {},
     ]
     assert observed_summary_inputs == [

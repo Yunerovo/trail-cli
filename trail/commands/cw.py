@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -39,15 +40,15 @@ CW_STRATEGY_HELP = (
 )
 CW_STAGE_HELP = "仅用于货币战争内部阶段的快速检测或等待；不适用于登录页、大世界等非 CW 场景。"
 CW_SLOTS_HELP = "读取编队槽位并执行换位或上场。"
-CW_SHOP_HELP = "读取商店、购买槽位/经验并刷新或关闭。"
+CW_SHOP_HELP = "读取商店、估算升一级所需金币、购买槽位或经验，以及刷新、关闭商店。"
 CW_EQUIPMENT_HELP = (
     "compose 会执行真实合成并装备指定进阶装备，成功返回截图，slot 使用从 1 开始的位置。"
     "prepare 默认只汇总 bundle 装备资源，不下载；--refresh 写 workspace override 并刷新图标/特征。"
     "read 默认使用 bundle recognizer，会截图并识别当前装备网格。"
 )
 CW_CRYSTALS_HELP = "收取当前局内结晶产出。"
-CW_HAND_HELP = "出售手牌或生成出售候选。"
-CW_REPLENISH_HELP = "读取或选择局内补给事件。"
+CW_HAND_HELP = "打开备战席简易武装箱、出售手牌或生成出售候选。"
+CW_REPLENISH_HELP = "读取、选择或整组刷新局内补给事件。"
 CW_INVEST_HELP = "读取或选择局内 invest 事件的兼容/粗粒度入口，不用于投资策略页。"
 CW_ENCOUNTER_HELP = "读取或选择局内遭遇事件。"
 CW_FORTUNE_HELP = "读取或选择局内命运卜者事件。"
@@ -226,13 +227,16 @@ def cw_start(
         "选择当前投资环境页上的一张卡。"
         "必须先用 guide.fetch.cw --select 记录当前已选攻略，未记录则会在点击前失败；"
         "成功后会自动应用当前已选攻略。装备读取失败不改变 cw.portal.select -> trail-cw-prep handoff。"
+        "使用 --no-guide 只选投资环境，保留后续运营给调用者。"
     ),
 )
 def cw_portal_select(
     session: str = typer.Option(..., "--session"),
     card_idx: int = typer.Option(..., "--card-idx"),
+    no_guide: bool = typer.Option(False, "--no-guide", help="仅选择投资环境。"),
 ) -> None:
-    _print_cw("cw.portal.select", session_id=session, payload={"card_idx": card_idx})
+    payload = {"card_idx": card_idx, "apply_guide": False} if no_guide else {"card_idx": card_idx}
+    _print_cw("cw.portal.select", session_id=session, payload=payload)
 
 
 @portal_app.command(
@@ -293,6 +297,16 @@ def cw_guide_current(session: str = typer.Option(..., "--session")) -> None:
 @stage_app.command("detect")
 def cw_stage_detect(session: str = typer.Option(..., "--session")) -> None:
     _print_cw("cw.stage.detect", session_id=session)
+
+
+@stage_app.command("read", help="读取当前画面文字。适用于奇遇伙伴、选择主角或其它需要人工核对的页面。")
+def cw_stage_read(session: str = typer.Option(..., "--session")) -> None:
+    _print_cw("cw.stage.read", session_id=session)
+
+
+@stage_app.command("opening", help="逐页采集 4.7 开局预览的伙伴、首领和难度信息，完成后返回预览页。")
+def cw_stage_opening(session: str = typer.Option(..., "--session")) -> None:
+    _print_cw("cw.stage.opening", session_id=session)
 
 
 @stage_app.command("wait")
@@ -379,6 +393,21 @@ def cw_hand_sell(
     _print_cw("cw.hand.sell", session_id=session, payload={"slots": parsed_slots})
 
 
+@hand_app.command("open-box", help="打开备战席简易武装箱的装备选择弹窗，保留选项等待选择。")
+def cw_hand_open_box(
+    session: str = typer.Option(..., "--session"),
+    slot: str = typer.Option(..., "--slot", help="从 1 开始的备战席位置。"),
+) -> None:
+    if _reject_yaml_for_cw_mutation("cw.hand.open_box"):
+        return
+    try:
+        index = _parse_agent_hand_slot(slot)
+    except TrailError as error:
+        print_output("cw.hand.open_box", _cw_input_invalid_response(str(error)))
+        return
+    _print_cw("cw.hand.open_box", session_id=session, payload={"slot": index})
+
+
 @hand_app.command("sell-plan")
 def cw_hand_sell_plan(session: str = typer.Option(..., "--session")) -> None:
     _print_cw("cw.hand.sell_plan", session_id=session)
@@ -403,9 +432,29 @@ def cw_shop_buy_slot(
     _print_cw("cw.shop.buy_slot", session_id=session, payload={"slot": slot, "expect": expect})
 
 
-@shop_app.command("buy-exp")
-def cw_shop_buy_exp(session: str = typer.Option(..., "--session")) -> None:
-    _print_cw("cw.shop.buy_exp", session_id=session)
+@shop_app.command("plan-exp", help="只读核算升到下一级的经验和金币，返回本次核算所用的截图。")
+def cw_shop_plan_exp(
+    session: str = typer.Option(..., "--session"),
+    target_level: int = typer.Option(..., "--target-level", min=1),
+) -> None:
+    _print_cw("cw.shop.plan_exp", session_id=session, payload={"target_level": target_level})
+
+
+@shop_app.command("buy-exp", help="单次购买经验，或指定下一级后按可核验的金币预算购买。")
+def cw_shop_buy_exp(
+    session: str = typer.Option(..., "--session"),
+    target_level: int | None = typer.Option(None, "--target-level", min=1),
+    max_gold: int | None = typer.Option(None, "--max-gold", min=0, help="指定目标等级时允许消费的金币上限。"),
+) -> None:
+    if target_level is None:
+        if max_gold is not None:
+            raise typer.BadParameter("--max-gold requires --target-level")
+        _print_cw("cw.shop.buy_exp", session_id=session)
+        return
+
+    command = "cw.shop.buy_exp_to_level"
+    if not _reject_yaml_for_cw_mutation(command):
+        _print_cw(command, session_id=session, payload={"target_level": target_level, "max_gold": max_gold})
 
 
 @shop_app.command("refresh")
@@ -435,8 +484,18 @@ def cw_equipment_prepare(
 
 
 @equipment_app.command("read")
-def cw_equipment_read(session: str = typer.Option(..., "--session")) -> None:
-    _print_cw("cw.equipment.read", session_id=session)
+def cw_equipment_read(
+    session: str = typer.Option(..., "--session"),
+    consumables: bool = typer.Option(False, "--consumables", help="读取备战消耗品的名称和数量。"),
+) -> None:
+    payload = {"read_consumables": True} if consumables else None
+    _print_cw("cw.equipment.read", session_id=session, payload=payload)
+
+
+@equipment_app.command("open-chimera-projector", help="按名称定位奇美拉投影仪并打开奇美拉选择页。")
+def cw_equipment_open_chimera_projector(session: str = typer.Option(..., "--session")) -> None:
+    if not _reject_yaml_for_cw_mutation("cw.equipment.open_chimera_projector"):
+        _print_cw("cw.equipment.open_chimera_projector", session_id=session)
 
 
 @equipment_app.command(
@@ -475,6 +534,12 @@ def cw_replenish_read(session: str = typer.Option(..., "--session")) -> None:
 @replenish_app.command("choose")
 def cw_replenish_choose(session: str = typer.Option(..., "--session"), option: int = typer.Option(..., "--option")) -> None:
     _print_cw("cw.replenish.choose", session_id=session, payload={"option": option})
+
+
+@replenish_app.command("refresh", help="核对剩余次数后刷新整组补给一次，返回更新后的页面。")
+def cw_replenish_refresh(session: str = typer.Option(..., "--session")) -> None:
+    if not _reject_yaml_for_cw_mutation("cw.replenish.refresh"):
+        _print_cw("cw.replenish.refresh", session_id=session)
 
 
 @invest_app.command("read")
@@ -522,13 +587,25 @@ def cw_battle_run(
     session: str = typer.Option(..., "--session"),
     timeout: int = typer.Option(DEFAULT_CW_BATTLE_RUN_TIMEOUT, "--timeout"),
     request_id: str | None = typer.Option(None, "--request-id", help="查询既有 cw.battle.run daemon job。"),
+    no_auto_collect: bool = typer.Option(False, "--no-auto-collect", help="跳过战后的备战采集。"),
+    stop_at_plane: bool = typer.Option(False, "--stop-at-plane", help="在下一位面入口停下，保留战报。"),
 ) -> None:
-    _print_cw("cw.battle.run", session_id=session, payload={"timeout": timeout}, request_id=request_id)
+    payload = {"timeout": timeout, "collect_crystals": False} if no_auto_collect else {"timeout": timeout}
+    if stop_at_plane:
+        payload["stop_at_plane"] = True
+    _print_cw("cw.battle.run", session_id=session, payload=payload, request_id=request_id)
 
 
 @battle_app.command("clear-in-progress")
 def cw_battle_clear_in_progress(session: str = typer.Option(..., "--session")) -> None:
     _print_cw("cw.battle.clear_in_progress", session_id=session, payload={})
+
+
+@battle_app.command("replay", help="从单场战斗录像读取战报。无需连接游戏或 daemon。")
+def cw_battle_replay(video: Path = typer.Argument(..., exists=True, dir_okay=False)) -> None:
+    from trail.scenes.cw.battle_replay import replay_cw_battle
+
+    print_output("cw.battle.replay", _with_auto_capture(None, lambda: replay_cw_battle(video)))
 
 
 @battle_app.command("continue")
@@ -552,6 +629,33 @@ def cw_event_handle(
     if variable_cost_choice is not None:
         payload = {"variable_cost_choice": {"role_name": "银狼LV.999", "choice": variable_cost_choice.value}}
     _print_cw("cw.event.handle", session_id=session, payload=payload)
+
+
+@event_app.command("open-aura-reselect", help="读取主角光环详情，可打开指定光环的重选提示。")
+def cw_event_open_aura_reselect(
+    session: str = typer.Option(..., "--session"),
+    option: int | None = typer.Option(None, "--option", min=1, max=3, help="从左至右的光环卡片编号。"),
+) -> None:
+    if not _reject_yaml_for_cw_mutation("cw.event.open_aura_reselect"):
+        _print_cw("cw.event.open_aura_reselect", session_id=session, payload={"option": option})
+
+
+@event_app.command("drag-aura-role", help="在主角光环选择页，将指定前台或后台角色拖入中央主角框。")
+def cw_event_drag_aura_role(
+    session: str = typer.Option(..., "--session"),
+    source: str = typer.Option(..., "--source", help="光环页角色槽位，从左至右编号，例如 front:1 或 back:2。"),
+) -> None:
+    command = "cw.event.drag_aura_role"
+    if _reject_yaml_for_cw_mutation(command):
+        return
+    try:
+        parsed_source = _parse_agent_slot_ref(source)
+        if parsed_source.startswith("hand:"):
+            raise TrailError("CW_OPTION_INVALID", "光环页只支持前台或后台槽位")
+    except TrailError as error:
+        print_output(command, _cw_input_invalid_response(str(error)))
+        return
+    _print_cw(command, session_id=session, payload={"source": parsed_source})
 
 
 @event_app.command("reconcile")

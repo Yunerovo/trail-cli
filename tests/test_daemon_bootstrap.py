@@ -499,6 +499,23 @@ def test_start_bootstrap_marks_runtime_starting_and_launches_elevated_pythonw(mo
     assert manifest.runtime.state == "starting"
 
 
+def test_start_bootstrap_preserves_ready_manifest_from_fast_daemon(monkeypatch, tmp_path: Path):
+    from trail.daemon import bootstrap
+
+    daemon_home = tmp_path / "daemon-home"
+    path = write_installed_manifest(daemon_home, runtime_state="installed")
+
+    def start_daemon(*args, **kwargs):
+        assert load_manifest(path).runtime.state == "starting"
+        write_ready_manifest(daemon_home, endpoint="127.0.0.1:8765", token_value="new-token")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(bootstrap.subprocess, "run", start_daemon)
+
+    assert bootstrap.start_bootstrap(daemon_home) is True
+    assert load_manifest(path).runtime.state == "ready"
+
+
 def test_stop_bootstrap_launches_elevated_stop(monkeypatch):
     from trail.daemon.bootstrap import stop_bootstrap
 

@@ -223,7 +223,7 @@ def test_build_cw_stage_detector_falls_back_to_preparation_from_ocr():
     assert detector() == "preparation"
 
 
-def test_build_cw_stage_detector_maps_battle_button_to_preparation_without_ocr():
+def test_build_cw_stage_detector_maps_battle_button_without_season_choice_to_preparation():
     runtime = _StageDetectorRuntime(
         locate_hits={_asset("action.battle_start"): _box("action.battle_start", left=1650, top=720)},
         ocr_image_result=[_rapidocr_piece("备战阶段")],
@@ -232,7 +232,7 @@ def test_build_cw_stage_detector_maps_battle_button_to_preparation_without_ocr()
     detector = stage_scene.build_cw_stage_detector(runtime)
 
     assert detector() == "preparation"
-    assert runtime.ocr_image_calls == []
+    assert runtime.ocr_image_calls == [{"ocr": OcrRequestConfig(lang="ch")}]
 
 
 def test_build_cw_stage_detector_maps_click_blank_without_conflict_to_layer_transition():
@@ -244,7 +244,16 @@ def test_build_cw_stage_detector_maps_click_blank_without_conflict_to_layer_tran
     detector = stage_scene.build_cw_stage_detector(runtime)
 
     assert detector() == "layer_transition"
-    assert runtime.ocr_image_calls == []
+    assert runtime.ocr_image_calls == [{"ocr": OcrRequestConfig(lang="ch")}]
+
+
+def test_season_two_opening_overview_survives_blank_continue_template_match():
+    runtime = _StageDetectorRuntime(
+        locate_hits={_asset("stage.boss_preview"): _box("stage.boss_preview", left=440, top=480)},
+        ocr_image_result=[_rapidocr_piece(text) for text in ("本场对局.首领", "本局奇遇", "下一步")],
+    )
+
+    assert stage_scene.build_cw_stage_detector(runtime)() == "boss_preview"
 
 
 def test_build_cw_stage_detector_checks_click_blank_before_normal_stage_templates():
@@ -295,7 +304,28 @@ def test_build_cw_stage_detector_treats_click_blank_without_conflict_as_layer_tr
     detector = stage_scene.build_cw_stage_detector(runtime)
 
     assert detector() == "layer_transition"
-    assert runtime.ocr_image_calls == []
+    assert runtime.ocr_image_calls == [{"ocr": OcrRequestConfig(lang="ch")}]
+
+
+@pytest.mark.parametrize(("heading", "expected"), [("奇遇伙伴", "voyage_companion"), ("选择主角", "plot_armor")])
+def test_season_two_decision_takes_precedence_over_background_battle_button(heading, expected):
+    runtime = _StageDetectorRuntime(
+        locate_hits={_asset("action.battle_start"): _box("action.battle_start", left=1650, top=720)},
+        ocr_image_result=[_rapidocr_piece("备战阶段"), _rapidocr_piece(heading)],
+    )
+
+    assert stage_scene.build_cw_stage_detector(runtime)() == expected
+
+
+@pytest.mark.parametrize(("headings", "expected"), [
+    (["返回备战界面", "备战阶段", "补给阶段"], "replenish"),
+    (["返回备战界面", "遭遇节点"], "encounter"),
+    (["返回备战界面", "请选择投资策略"], "invest"),
+    (["选择主角", "请选择奇美拉"], "chimera_pick"),
+    (["是否重新选择主角和光环的效果，将消耗1次重选次数。"], "plot_armor"),
+])
+def test_stage_read_recognizes_season_two_choice_page(headings, expected):
+    assert stage_scene._stage_from_ocr_pieces(headings) == expected
 
 
 def test_build_cw_stage_detector_uses_single_screenshot_for_template_hits():
@@ -543,6 +573,8 @@ def test_portal_selection_stage_update_preserves_existing_stage_status(tmp_path,
 
 def test_strategy_selection_stage_update_preserves_existing_stage_status(tmp_path, monkeypatch):
     from trail.scenes.cw import strategy as strategy_scene
+    from trail.scenes.cw import events
+    monkeypatch.setattr(events, "build_cw_invest_chooser", lambda runtime, **kwargs: lambda idx: None)
 
     session = _build_stage_session(tmp_path)
     _seed_stage_status(session, stage={"value": "invest"})
@@ -749,3 +781,50 @@ def test_cw_stage_detect_service_preserves_last_stage_snapshot(tmp_path: Path, m
     assert result["value"] == "event"
     assert persisted.scene_state["cw"]["stage"]["value"] == "event"
     assert persisted.last_stage == {"scene": "cw", "value": "event"}
+
+
+@pytest.mark.parametrize(("extra", "expected"), [
+    ([], "preparation"),
+    ([_rapidocr_piece("选择主角")], "plot_armor"),
+    ([_rapidocr_piece("是否重新选择主角和光环的效果，将消耗1次重选次数。")], "plot_armor"),
+])
+def test_board_aura_button_is_not_a_selection_dialog(extra, expected):
+    button = ([[1710, 10], [1800, 10], [1800, 30], [1710, 30]], "选择主角", 0.99)
+    pieces = [_rapidocr_piece("备战阶段"), button, *extra]
+    assert stage_scene._stage_from_ocr_pieces(pieces) == expected
+    runtime = _StageDetectorRuntime(
+        locate_hits={_asset("action.battle_start"): _box("action.battle_start", left=1650, top=720)},
+        ocr_image_result=pieces,
+    )
+    assert stage_scene.build_cw_stage_detector(runtime)() == expected
+
+
+def test_board_aura_button_without_heading_requires_battle_template():
+    button = ([[1710, 10], [1800, 10], [1800, 30], [1710, 30]], "选择主角", 0.99)
+    assert stage_scene._stage_from_ocr_pieces([button]) == "plot_armor"
+    runtime = _StageDetectorRuntime(
+        locate_hits={_asset("action.battle_start"): _box("action.battle_start", left=1650, top=720)},
+        ocr_image_result=[button],
+    )
+    assert stage_scene.build_cw_stage_detector(runtime)() == "preparation"
+
+
+@pytest.mark.parametrize("as_bytes", [False, True])
+@pytest.mark.parametrize("decision", [False, True])
+def test_shop_overlay_overrides_background_battle_button_but_not_decision(as_bytes, decision):
+    from io import BytesIO
+    image = Image.new("RGB", (1920, 1080), "black")
+    image.paste("white", (1553, 453, 1689, 580))
+    runtime = _StageDetectorRuntime(
+        locate_hits={_asset("action.battle_start"): _box("action.battle_start", left=1650, top=720)},
+        ocr_image_result=[_rapidocr_piece("备战阶段"), _rapidocr_piece("刷新"),
+                          *([_rapidocr_piece("请选择投资策略"), _rapidocr_piece("返回备战界面")] if decision else [])],
+    )
+    if as_bytes:
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        screenshot = buffer.getvalue()
+    else:
+        screenshot = image
+    runtime.screenshot = lambda **kwargs: screenshot
+    assert stage_scene.build_cw_stage_detector(runtime)() == ("invest" if decision else "shop")

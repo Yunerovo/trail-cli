@@ -5,6 +5,11 @@ description: 当上游已经进入货币战争普通备战阶段，并且需要�
 
 # Skill: trail-cw-prep
 
+- Agent 自主运营可用 `trail cw battle run --session <id>`，读取本场战报和下一节点事实。只想推进战斗时使用 `--no-auto-collect`。希望停在位面入口时使用 `--stop-at-plane`。决策页返回 `text` 行，可用 `trail cw stage read --session <id>` 复查。
+- `cw.battle.run` 的 `battle_report` 提供进度、最低进度是否达标、致命攻击导致的行动值变化和结算生命值明细。`unknown` 表示缺少可确认的证据。各项变化均为画面事实，运营由调用方决定。复核单场录像可用 `trail --format yaml cw battle replay <录像路径>`。
+- 出战或按目标等级买经验若返回 `state=running`，用 `trail daemon request-status --request-id <id>` 查状态，`final=1` 时用 `trail daemon request-result --request-id <id>` 取回原结果。
+- 出战返回 `status=blocked` 且 `reason=reserve_overflow` 时，先看阻断截图和当前节点，用 `trail cw slots read --session <id>` 核对超出的备战席角色，再决定如何腾出位置。
+
 ## Role
 
 - `trail-cw-prep` 是货币战争普通备战阶段的 active internal 跟进 skill，不是 scene entry、不是 direct-user 公共入口、不是整局 owner。
@@ -36,10 +41,18 @@ description: 当上游已经进入货币战争普通备战阶段，并且需要�
 - `cw.battle.run` 的 preparation handoff 与 `cw.portal.select` 一样先复用同次 stage/slots/equipment/shop facts；差异只在 daemon 为节约时间使用不同读取顺序，Agent 消费输出时不需要按内部读取顺序重排。
 - 只有事实缺失、stale 或页面已变化时，才主动调用 `trail cw slots read`、`trail cw equipment read` 或 `trail cw shop scan` 刷新；不要在接收 handoff 后立刻重复扫描。优先复用同次 equipment facts；缺失/stale/page changed 时才重跑 `cw.equipment.read`。
 - `cw.slots.read` 默认使用角色图标识别，不再逐槽位点击详情读取姓名。带截图 success 后必须先读本次 `shot path` 指向的截图，再消费 `slot`、羁绊和装备/商店事实；若出现 `CW_ROLE_MATCH_LOW_CONFIDENCE` 或 `SLOTS_RECOGNITION_UNCERTAIN`，先核对截图再做换位、出售或购买决策。
+- `slot pos=hand:N kind=weapon_box` 表示备战席被简易武装箱占用。可运行 `trail cw hand open-box --session <id> --slot N`，命令验证弹窗后返回装备选项及点选坐标。装备由调用方选择。已打开时可用 `cw stage read` 重新读取，选择前核对该画面的选项。
+- `trail cw event open-aura-reselect --session <id>` 打开左上角的主角光环与奇遇详情。带 `--option N` 时打开从左至右第 N 张卡的重选确认提示。消耗重选次数由调用方确认。
+- 已在「选择一个角色获得主角光环」页面时，用 `trail cw event drag-aura-role --session <id> --source front:1` 将指定角色拖入中央主角框。前台和后台分别从左至右编号。成功后查看截图，选择光环及确认仍由调用方操作。
+- 补给页用 `trail cw replenish refresh --session <id>` 刷新整组卡片一次，再按回包截图和剩余次数决定如何选择。
+- `cw.battle.run` 与 `cw.event.reconcile` 返回同一 `run_id` 下的负面词缀、已选投资环境和投资策略，以及主角光环核对状态。战斗响应把它们和本场战报、下一节点局面一起返回。常规响应保留名称、状态与剩余次数。需要完整效果或光环历史时用 `trail --format yaml state dump --session <id> --cw-run`。
+- 完成光环重选或人工操作后，运行 `cw.event.reconcile` 重新核对。能安全进入详情页时 CLI 读取光环并回到备战；若仍处于选择页，光环标为 `unverified`。人工接管期间可能发生的投资选择会标为记录可能不全。Agent 自行使用事实修正运营计划。 自动核对后若不能确认回到备战，`cw.battle.run` 会停止、返回当前阶段或 `unknown` 和 `stale=1`（尚未开战时 `status=blocked`，已完成战斗则保留 `status=completed` 和战报），并提示 `cw.event.reconcile`；先读截图并核对页面。重选点击后若确认失败，旧光环同样标为 `unverified`。
+- `trail cw equipment open-chimera-projector --session <id>` 按道具全名定位奇美拉投影仪，验证打开选择页后返回。奇美拉选项由调用方决定。
 - `# 羁绊信息` 下的羁绊摘要使用 `info 羁绊=... 档位="2*,4,6" 当前角色=...`；`*` 表示该档位已激活，默认文本不再输出 `已激活档位` 或 `占比`。`cw.slots.read` 默认文本会过滤底层 status OCR 的 `OCR_LOW_CONFIDENCE`，但角色识别低置信 warning 仍必须按截图核对。
 - 若 `slots.read` 或 `shop.scan` 输出 `match_kind=low_confidence`、`raw_name` 或低置信度 `warn`，必须先读截图确认，再接受 canonicalized 名称。
 - `cw.equipment.read` 返回截图时必须先读原始截图，再消费 `item pos=equipment:<idx> center=x,y ...` 行、`# 装备优先级` 的 `guide` 行，以及 `# 角色装备需求` 的 `slot` 行或 `info todo=slots`；这些装备推荐分块位于 `warn`、`ref` 之前。若看到 `info todo=slots`，先运行或刷新 `cw.slots.read`，不要用 stale slots 推断角色缺口。需要排查 `row/col` 时，使用 `trail --format yaml cw equipment read --session <id>` 或 `trail --format yaml state dump --session <id>`。
 - `cw.equipment.read` daemon 默认热路径使用 bundle recognizer，不调用 prepare/download/load icon cache；不要为普通装备读取先跑 `cw.equipment.prepare`。
+- 4.7 在备战时可显式运行 `trail cw equipment read --consumables --session <id>`。命令打开各消耗品的详情并关闭，返回名称、数量和中心坐标。YAML 的 `consumables` 与装备 `items` 分开，未确认的名称为 null。
 - 接收 `cw.portal.select` 或 `cw.battle.run` preparation handoff 后，如果后续执行 `cw.equipment.read` 并看到装备推荐，仍要先读截图，再看 `# 装备优先级` 的基础装备 `have/need` 与需求角色，最后看 `# 角色装备需求` 的当前 canonical 角色缺口；不要为了低优先级装备过早消耗基础装备。
 - `# 角色装备需求` 当前只消费攻略 `优选装备` / `first_equipments`；不要因为攻略里有 `次选装备` / `second_equipments` 就提前合成。TODO：最后一层 BOSS 战前的备战阶段再考虑次选装备。
 - `cw.equipment.compose` / `trail cw equipment compose` 会刷新角色/装备快照、校验 `slot` + `role`，优先复用当前背包内已有的高置信目标进阶装备；若不存在可复用装备才执行真实合成并装备，验证成功后写入 session。slot 使用 `front:1`、`back:1`、`hand:1` 这种从 1 开始的位置，成功首行为 `ok cw.equipment.compose pos=... name=... 装备=... count=...`。该 success 会输出 `shot path=...` 和 `info read_image_first=1`，必须先读截图，再消费 `# 综合信息`、`# 装备信息`、`# 角色信息` 下的 action/item/slot facts；`action=equip_existing consumed=0` 表示直接装备已有目标装备，`# 装备信息` 输出 `item kind=existing phase=pre_equip ...`，不会输出 material 或 post_compose result；`action=compose consumed=2` 表示执行了合成，然后再看 `action=equip` 的装备落位事实。若材料不足，检查 `warn code=CW_EQUIPMENT_MATERIALS_MISSING 需求=... 持有=...`；该命令不支持 YAML。
@@ -52,11 +65,12 @@ description: 当上游已经进入货币战争普通备战阶段，并且需要�
 - `trail cw stage detect|wait`：确认当前 CW 阶段。
 - `trail cw slots read`：默认使用角色图标识别读取前台、后台、手牌和羁绊摘要，不再逐槽位点击详情读取姓名；Agent 可见槽位编号从 1 开始。带截图 success 后必须先读本次 `shot path` 指向的截图，再消费 `slot`、羁绊和装备/商店事实；羁绊 `档位` 中的 `*` 表示已激活档位；若出现 `CW_ROLE_MATCH_LOW_CONFIDENCE` 或 `SLOTS_RECOGNITION_UNCERTAIN`，先核对截图再做换位、出售或购买决策。
 - `trail cw shop scan|status|buy-slot|buy-exp|refresh|close`：读取和执行商店动作；`shop.scan` 有截图，`shop.status` 无截图；`shop.buy-slot` 会要求已有 fresh 且 opened 的商店快照，成功后返回购买后 slots 差分验证与 `# 角色信息`，仍要先读截图再消费文本事实。普通角色的 `info action=buy_slot` 带 `before_count/after_count/delta/required`；`银狼LV.999` / LV999 按同 cost 槽位验证，默认 info 行只带 `role=银狼LV.999 verified=1`，cost 只在 `item`/`slot` 行出现。
+- `trail cw shop plan-exp --session <id> --target-level N` 只读估算升到下一级的总金币。「成长的烦恼」在 8 级起每笔按 5 金核算，即使按钮显示 4 金。按目标等级购买时用 `trail cw shop buy-exp --session <id> --target-level N`，可用 `--max-gold` 指定消费上限。若回包是 `unconfirmed`，先看返回截图和 `purchases_verified/gold_spent`，再核对余额和经验。
 - `银狼LV.999 默认文本身份使用 name + cost + star`；它与普通 `银狼` 是不同角色，`cost 是 slots/shop/sell_plan 的 must-keep 事实`，但只能作为默认文本既有 `slot`/`item` 行字段输出；`role_id 只作内部资源/诊断，不作 Agent 业务身份`。Agent 做购买、出售和换位判断时以默认文本的 `name`、`cost`、`star` 为业务身份，不把 `role_id` 当成可直接执行的业务事实。
 - `trail cw equipment read --session <id>`：读取当前装备背包图标；返回截图时必须先读原始截图，再消费背包 `item`、`# 装备优先级` 的 `guide` 行、`# 角色装备需求` 的 `slot` 行或 `info todo=slots`。若看到 `info todo=slots`，先运行或刷新 `cw.slots.read`；这些分块位于 `warn`、`ref` 之前。需要诊断 `row/col` 时用 `trail --format yaml cw equipment read --session <id>` 或 `trail --format yaml state dump --session <id>`。
 - `trail cw equipment compose --session <id> --name <进阶装备名> --slot front:1 --role <角色名>`：canonical command 为 `cw.equipment.compose`；刷新角色/装备快照，校验 `slot` + `role`，优先复用已有高置信目标装备，否则执行真实合成和装备，验证成功后写入 session；success 有截图，先读 `shot path=...` 对应原图和 `info read_image_first=1`，再消费 `# 综合信息`、`# 装备信息`、`# 角色信息`；材料不足时检查 `warn code=CW_EQUIPMENT_MATERIALS_MISSING 需求=... 持有=...`；不支持 YAML；slot 使用 Agent 可见 1-based。
 - `trail cw equipment prepare --session <id> [--refresh]`：默认只验证/汇总 bundle 装备资源，不下载图标；只有明确要刷新同版本 URL 变化或重建 workspace equipment override 时才使用 `--refresh`。
-- `trail cw crystals collect`：截图确认本轮有可收晶矿时执行；收取后根据新截图判断手牌区是否变化。
+- `trail cw crystals collect`：识别可见蓝色和黄金晶球后逐次收取。若返回 `blocked`，按当前阶段处理弹窗。若返回 `unconfirmed`，先看截图。成功收取后刷新备战席和装备事实。
 - `trail cw hand sell-plan|sell`：读取或执行卖牌动作。
 - `trail cw event handle --session <id> --variable-cost-choice cost_up|equipment`：LV999 显式选择事件入口；CLI 会把 `variable_cost_choice` 发送给 daemon，供 `cost_up` 或装备选择后同步当前 `银狼LV.999` 状态。
 - `trail cw event handle --session <id>` 返回 `event_type=unknown` / `next_action=manual` 时，按 `handoff_skill=trail-cw-event-unknown` 离开本 skill；unknown 路径会标记 `stale_facts=stage/status|slots|shop|equipment|strategy|sell_plan|variable_cost_roles` 且保留 `crystals_stale=0`。若出现 `CW_EVENT_LV999_STATE_STALE`，等 reconcile 或补扫恢复 LV999 cost / star / slot 事实后再继续买卖判断。
@@ -142,3 +156,12 @@ description: 当上游已经进入货币战争普通备战阶段，并且需要�
 
 - `references/command-surface.md`：普通备战阶段可用命令和边界。
 - `references/stage-boundaries.md`：普通备战与其它阶段的分界。
+
+- `cw.battle.run --no-auto-collect` 若确认已进入决策页，以返回的当前阶段和节点为准，先读取决策页；已发生的战报仍保留。
+
+- 战后 `cw.battle.run` 会有界等待决策页或稳定备战，并在自动采集的输入前复核页面；若无法确认，停止采集并返回当前识别阶段或 unknown。若返回阶段 `unknown` 且 `stale=1`，读取截图并按恢复提示核对。
+
+- 剩余重选次数仅在当前光环详情画面中确认计数图标和对应数字时返回；无法核实时为 `unknown`。旧会话未核验的当前计数也会显示为未知，历史记录保留。
+
+- 光环详情按实际双卡或三卡位置编号；锁定卡位不挤占后续编号。重选仅点击指定卡一次，停在确认页供决策。
+- 备战复核读取商店后只发送一次关闭，最多等待 2 秒只读核对页面；未确认关闭时不把报价标为新鲜。

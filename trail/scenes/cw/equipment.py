@@ -8,16 +8,22 @@ from dataclasses import asdict
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
+import re
+from time import monotonic, sleep
 from typing import Any
 
+import cv2
+import numpy as np
 from PIL import Image, ImageChops, ImageStat
 
 from trail.core.errors import TrailError
 from trail.session.models import SessionModel
 from trail.scenes.cw.equipment_grid import (
     DEFAULT_EQUIPMENT_GRID_PROFILE,
+    SEASON_TWO_EQUIPMENT_GRID_PROFILE,
     crop_equipment_cells,
     crop_has_equipment_slot_markers,
+    crop_has_season_two_equipment_frame,
     equipment_slot_center,
     equipment_cell_center,
     iter_equipment_grid_cells,
@@ -33,17 +39,111 @@ from trail.scenes.cw.guide import complete_cw_guide_or_none, fetch_cw_raw_guide_
 from trail.scenes.cw.models import ensure_cw_state
 from trail.scenes.cw.slots import (
     SLOT_POINTS_BY_AREA,
+    _mark_slots_stale,
     canonical_cw_role_slots,
     format_cw_agent_slot_reference,
     parse_cw_slot_reference,
     read_cw_slots,
 )
+from trail.scenes.cw.stage import _read_ocr_box, _read_ocr_piece, _replace_stage_fields, build_cw_stage_detector
 from trail.runtime.model import Box
+from trail.runtime.ocr_config import OcrRequestConfig
 from trail.runtime.resources import resolve_scene_asset
 
 
 COMPOSE_CONFIRM_WAIT_TIMEOUT_SECONDS = 3
 COMPOSE_CONFIRM_WAIT_INTERVAL_SECONDS = 0.2
+CONSUMABLE_CENTERS = ((1858, 165), (1781, 165), (1704, 165), (1627, 165))
+CONSUMABLE_DETAILS = (1390, 130, 1812, 432)
+CHIMERA_PROJECTOR_NAME = "奇美拉投影仪"
+CHIMERA_GARDEN_REGION = (305, 260, 620, 350)
+CHIMERA_GARDEN_TARGET = (465, 305)
+
+
+def _equipment_grid_profile(raw_config: Mapping[str, Any] | None):
+    if raw_config and str(raw_config.get("rpg_game_big_version")) == "4.7":
+        return SEASON_TWO_EQUIPMENT_GRID_PROFILE
+    return DEFAULT_EQUIPMENT_GRID_PROFILE
+
+
+def _read_season_two_consumables(
+    runtime, image: Image.Image, *, safe_to_inspect: Callable[[], bool] | None = None,
+) -> list[dict[str, Any]] | None:
+    ocr_image = getattr(runtime, "ocr_image", None)
+    drag_to = getattr(runtime, "drag_to", None)
+    click_point = getattr(runtime, "click_point", None)
+    if not all(callable(callback) for callback in (ocr_image, drag_to, click_point)):
+        return None
+    ocr = OcrRequestConfig(lang="ch", ocr_mode="high")
+    consumables = []
+    for x, y in CONSUMABLE_CENTERS:
+        badge = image.crop((x + 15, y + 10, x + 37, y + 39)).convert("L")
+        badge = badge.point(lambda value: 0 if value > 174 else 255)
+        badge = badge.resize((badge.width * 4, badge.height * 4), Image.Resampling.LANCZOS).convert("RGB")
+        counts = [
+            int(text) for piece in ocr_image(badge, ocr=ocr) or []
+            if re.fullmatch(r"[1-9]\d?", text := _read_ocr_piece(piece).strip())
+        ]
+        if len(counts) != 1:
+            break
+        if safe_to_inspect is not None and not safe_to_inspect():
+            break
+        # A drag released on the same icon reveals its tooltip without using it.
+        drag_to(x, y, x, y, duration=0.35)
+        try:
+            details = _runtime_image(runtime).crop(CONSUMABLE_DETAILS)
+            pieces = [
+                (_read_ocr_piece(piece).strip(), box)
+                for piece in ocr_image(details, ocr=ocr) or []
+                if (box := _read_ocr_box(piece)) is not None
+            ]
+            label = next((box for text, box in pieces if text == "消耗品"), None)
+            names = [
+                text for text, box in pieces
+                if label is not None and box[3] <= label[1] + 4 and abs(box[0] - label[0]) <= 30
+                and re.search(r"[\u4e00-\u9fff]", text)
+            ]
+            consumables.append({
+                "name": names[-1] if names else None,
+                "count": counts[0],
+                "center": {"x": x, "y": y},
+            })
+        finally:
+            click_point(1718, 114)
+    return consumables
+
+
+def open_cw_chimera_projector(session: SessionModel, runtime) -> dict[str, Any]:
+    detector = build_cw_stage_detector(runtime)
+    if detector() != "preparation":
+        raise TrailError("CW_PROJECTOR_NOT_READY", "请先回到普通备战界面")
+    image = _runtime_image(runtime)
+    garden = np.asarray(image.crop(CHIMERA_GARDEN_REGION).convert("L"))
+    with Image.open(resolve_scene_asset("cw", "equipment.chimera_garden")) as asset:
+        template = np.asarray(asset.convert("L"))
+    if cv2.matchTemplate(garden, template, cv2.TM_CCOEFF_NORMED).max() < 0.85:
+        raise TrailError("CW_PROJECTOR_GARDEN_NOT_FOUND", "未识别到可用的奇兽花园面板")
+    inspection_scope = getattr(runtime, "suppress_side_effect_tracking", nullcontext)
+    with inspection_scope():
+        items = _read_season_two_consumables(runtime, image, safe_to_inspect=lambda: detector() == "preparation") or []
+    if detector() != "preparation":
+        raise TrailError("CW_PROJECTOR_NOT_READY", "备战页面已变化")
+    matches = [item for item in items if item["name"] == CHIMERA_PROJECTOR_NAME]
+    if len(matches) != 1:
+        raise TrailError("CW_PROJECTOR_NOT_FOUND", "未唯一识别到奇美拉投影仪")
+    source = matches[0]["center"]
+    runtime.drag_to(source["x"], source["y"], *CHIMERA_GARDEN_TARGET, duration=0.35)
+    _mark_slots_stale(session)
+    deadline = monotonic() + 2.0
+    while monotonic() < deadline:
+        sleep(0.2)
+        if detector() == "chimera_pick":
+            _replace_stage_fields(session, value="chimera_pick", stale=False)
+            session.last_stage = {"scene": "cw", "value": "chimera_pick"}
+            return {"name": CHIMERA_PROJECTOR_NAME, "stage": "chimera_pick", "next_action": "cw.stage.read"}
+    error = TrailError("CW_PROJECTOR_UNCONFIRMED", "已拖动奇美拉投影仪，请核对当前画面")
+    error.known_failure_after_save = True
+    raise error
 
 
 def prepare_cw_equipment(*, workspace_root: str | Path | None = None, refresh: bool = False) -> dict[str, Any]:
@@ -311,8 +411,11 @@ def select_cw_equipment_compose_materials(
     if recipe is None:
         raise TrailError("CW_EQUIPMENT_RECIPE_MISSING", f"missing equipment recipe: {equipment_name}")
 
-    total_basic_need = sum(child.need for child in recipe.basics)
-    if total_basic_need != 2:
+    alternatives = [
+        children for children in (recipe.alternatives or (recipe.basics,))
+        if sum(child.need for child in children) == 2
+    ]
+    if not alternatives:
         raise TrailError("CW_EQUIPMENT_RECIPE_UNSUPPORTED", f"unsupported equipment recipe: {equipment_name}")
 
     items = sorted(
@@ -320,15 +423,33 @@ def select_cw_equipment_compose_materials(
         key=_equipment_item_idx,
     )
     counts = _equipment_identity_counter(items)
-    needed = [
-        {"name": child.name, "need": child.need, "have": counts.get(_recipe_child_match_key(child), 0)}
-        for child in recipe.basics
+    confirmed_items = [item for item in items if item.get("uncertain") is not True]
+    confirmed_counts = _equipment_identity_counter(confirmed_items)
+    choices = [
+        [
+            {"name": child.name, "need": child.need, "have": counts.get(_recipe_child_match_key(child), 0)}
+            for child in children
+        ]
+        for children in alternatives
     ]
+    viable = next(
+        (
+            idx for idx, children in enumerate(alternatives)
+            if all(confirmed_counts[_recipe_child_match_key(child)] >= child.need for child in children)
+        ),
+        None,
+    )
+    available = list(confirmed_items)
+    if viable is None:
+        viable = next(
+            (idx for idx, needs in enumerate(choices) if all(item["have"] >= item["need"] for item in needs)),
+            0,
+        )
+        available = list(items)
+    needed = choices[viable]
     held = [_held_compose_item(item) for item in items]
-
-    available = list(items)
     materials: list[Mapping[str, Any]] = []
-    for child in recipe.basics:
+    for child in alternatives[viable]:
         match_key = _recipe_child_match_key(child)
         for _ in range(child.need):
             selected_index = next(
@@ -870,6 +991,7 @@ def compose_and_equip_cw_equipment(
     preflight_read_scope: Callable[[], Any] | None = None,
 ) -> dict[str, Any]:
     read_scope = preflight_read_scope or nullcontext
+    grid = _equipment_grid_profile(raw_config)
     with read_scope():
         read_cw_slots(session, reader=slots_reader, guide_config=guide_config)
 
@@ -899,7 +1021,7 @@ def compose_and_equip_cw_equipment(
         if existing_item is not None:
             equip_from = f"equipment:{_equipment_item_idx(existing_item)}"
             equip_to = preflight["agent_slot"]
-            runtime.drag_to(*equipment_slot_center(equip_from), *SLOT_POINTS_BY_AREA[preflight["area"]][preflight["index"]])
+            runtime.drag_to(*equipment_slot_center(equip_from, profile=grid), *SLOT_POINTS_BY_AREA[preflight["area"]][preflight["index"]])
 
             post_equip_snapshot = apply_cw_equipment_read(
                 session,
@@ -944,7 +1066,7 @@ def compose_and_equip_cw_equipment(
     to_idx = min(material_idxs)
     drag_from = f"equipment:{from_idx}"
     drag_to = f"equipment:{to_idx}"
-    runtime.drag_to(*equipment_slot_center(drag_from), *equipment_slot_center(drag_to))
+    runtime.drag_to(*equipment_slot_center(drag_from, profile=grid), *equipment_slot_center(drag_to, profile=grid))
     _click_cw_equipment_compose_confirm(runtime)
 
     post_compose_snapshot = apply_cw_equipment_read(
@@ -966,7 +1088,7 @@ def compose_and_equip_cw_equipment(
 
     equip_from = f"equipment:{_equipment_item_idx(result_item)}"
     equip_to = preflight["agent_slot"]
-    runtime.drag_to(*equipment_slot_center(equip_from), *SLOT_POINTS_BY_AREA[preflight["area"]][preflight["index"]])
+    runtime.drag_to(*equipment_slot_center(equip_from, profile=grid), *SLOT_POINTS_BY_AREA[preflight["area"]][preflight["index"]])
 
     post_equip_snapshot = apply_cw_equipment_read(
         session,
@@ -1007,15 +1129,20 @@ def read_cw_equipment(
     raw_config: dict[str, Any] | None = None,
     recognizer=None,
     request_id: str | None = None,
+    read_consumables: bool = False,
 ) -> dict[str, Any]:
+    resolved_raw_config = raw_config
     if recognizer is None:
-        resolved_raw_config = raw_config if raw_config is not None else fetch_cw_raw_guide_config(workspace_root=workspace_root)
+        if resolved_raw_config is None:
+            resolved_raw_config = fetch_cw_raw_guide_config(workspace_root=workspace_root)
         catalog = build_cw_equipment_catalog(resolved_raw_config)
         prepare_equipment_icon_cache(catalog, workspace_root=workspace_root, refresh=False)
         recognizer = VectorEquipmentIconRecognizer(load_cached_equipment_icons(catalog, workspace_root=workspace_root))
     image = _runtime_image(runtime)
     screenshot = _save_reused_screenshot(runtime, image, request_id=request_id) if request_id is not None else None
-    cells = list(iter_equipment_grid_cells(DEFAULT_EQUIPMENT_GRID_PROFILE, columns=10, rows=6))
+    profile = _equipment_grid_profile(resolved_raw_config)
+    season_two = profile is SEASON_TWO_EQUIPMENT_GRID_PROFILE
+    cells = list(iter_equipment_grid_cells(profile, columns=10, rows=6))
     best_by_idx: dict[int, dict[str, Any]] = {}
     empty_templates: dict[int, Image.Image] | None = None
     empty_template_idxs: set[int] = set()
@@ -1023,7 +1150,13 @@ def read_cw_equipment(
     for crop in crop_equipment_cells(image, cells):
         if crop.cell.idx in empty_template_idxs:
             continue
-        if crop.cell.col <= 2:
+        query = crop.image
+        if season_two:
+            if not crop_has_season_two_equipment_frame(crop.image):
+                continue
+            width, height = query.size
+            query = query.crop((3, 3, width - 3, height - 3))
+        elif crop.cell.col <= 2:
             if empty_templates is None:
                 empty_templates = load_equipment_empty_templates()
             if empty_templates and _matches_equipment_empty_template(crop, empty_templates):
@@ -1034,7 +1167,7 @@ def read_cw_equipment(
                 continue
         elif not crop_has_equipment_slot_markers(crop.image):
             continue
-        item = _item_from_result(crop, recognizer.recognize(crop.image))
+        item = _item_from_result(crop, recognizer.recognize(query))
         if item is None:
             continue
         previous = best_by_idx.get(crop.cell.idx)
@@ -1043,20 +1176,24 @@ def read_cw_equipment(
         if previous is None or float(item_score if item_score is not None else -1.0) > float(previous_score if previous_score is not None else -1.0):
             best_by_idx[crop.cell.idx] = item
 
-    items = _filter_isolated_equipment_items([best_by_idx[idx] for idx in sorted(best_by_idx)])
+    items = [best_by_idx[idx] for idx in sorted(best_by_idx)]
+    if not season_two:
+        items = _filter_isolated_equipment_items(items)
     snapshot = {
         "count": len(items),
         "uncertain": sum(1 for item in items if item.get("uncertain")),
         "empty": len(cells) - len(items),
         "items": items,
         "backend": "vector",
-        "layout": "default",
+        "layout": "season_2" if season_two else "default",
         "columns": 10,
         "rows": 6,
         "stale": False,
     }
     if screenshot is not None:
         snapshot["_screenshot"] = screenshot
+    if season_two and read_consumables:
+        snapshot["consumables"] = _read_season_two_consumables(runtime, image)
     return snapshot
 
 
@@ -1068,6 +1205,7 @@ def apply_cw_equipment_read(
     raw_config: dict[str, Any] | None = None,
     recognizer=None,
     request_id: str | None = None,
+    read_consumables: bool = False,
 ) -> dict[str, Any]:
     resolved_raw_config = raw_config if raw_config is not None else fetch_cw_raw_guide_config(workspace_root=workspace_root)
     snapshot = read_cw_equipment(
@@ -1076,6 +1214,7 @@ def apply_cw_equipment_read(
         raw_config=resolved_raw_config,
         recognizer=recognizer,
         request_id=request_id,
+        read_consumables=read_consumables,
     )
     screenshot = snapshot.pop("_screenshot", None)
     recommendations = build_cw_equipment_recommendations(session, snapshot=snapshot, raw_config=resolved_raw_config)

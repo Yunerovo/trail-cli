@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from time import sleep
 from typing import Literal, NoReturn, NotRequired, TypedDict, cast
 
 from trail.core.errors import TrailError
+from trail.runtime.ocr_config import OcrRequestConfig
 from trail.runtime.resources import resolve_scene_asset
 from trail.scenes.cw.models import ensure_cw_state
-from trail.scenes.cw.stage import mark_cw_stage_stale, mark_cw_stage_status_stale
+from trail.scenes.cw.plot_armor import PLOT_ARMOR_CARD_X_TOLERANCE, resolve_cw_plot_armor_card_layout
+from trail.scenes.cw.stage import _replace_stage_fields, mark_cw_stage_stale, mark_cw_stage_status_stale, read_cw_stage_text, project_cw_preparation_header
 from trail.scenes.cw.variable_cost import (
     VARIABLE_COST_ROLE_NAME,
     VARIABLE_COST_ROLE_COSTS,
@@ -64,6 +67,8 @@ CW_BATTLE_TEAM_COUNT_CONFIRM_REGION = {
     "to_x": 0.75,
     "to_y": 0.75,
 }
+_AURA_RESELECT_ROW = {"from_x": 460, "from_y": 680, "to_x": 1460, "to_y": 756}
+_AURA_RESELECT_TEXT_OFFSET_X = 48
 CW_EVENT_NEXT_ACTIONS: dict[CwEventType, str] = {
     "replenish": "cw.replenish.choose",
     "invest": "cw.invest.choose",
@@ -249,26 +254,6 @@ def _click_cw_action_button(
         return
     runtime.click_point(*fallback_point)
 
-REPLENISH_OPTION_POINTS = {
-    1: _point(0.2, 0.52),
-    2: _point(0.53, 0.52),
-    3: _point(0.82, 0.52),
-}
-REPLENISH_CONFIRM_POINT = _point(0.88, 0.91)
-
-INVEST_OPTION_POINTS = {
-    1: _point(0.2, 0.3),
-    2: _point(0.5, 0.3),
-    3: _point(0.8, 0.3),
-}
-INVEST_CONFIRM_POINT = _point(0.77, 0.521)
-
-ENCOUNTER_OPTION_POINTS = {
-    1: _point(0.35, 0.5),
-    2: _point(0.65, 0.5),
-}
-ENCOUNTER_CONFIRM_POINT = _point(0.5, 0.84)
-
 FORTUNE_OPTION_POINTS = {
     1: _point(0.2, 0.3),
     2: _point(0.8, 0.3),
@@ -295,16 +280,178 @@ def _build_option_chooser(runtime, *, option_points: Mapping[int, tuple[int, int
     return chooser
 
 
+def _build_season_two_option_chooser(
+    runtime, *, stage_name: str, centers: tuple[int, ...], card_y: int,
+    confirm: str, confirm_y: tuple[int, int],
+) -> OptionChooser:
+    def chooser(option: int) -> None:
+        if type(option) is not int or not 1 <= option <= len(centers):
+            raise TrailError("CW_OPTION_INVALID", f"invalid currency wars option: {option}")
+        ocr = OcrRequestConfig(lang="ch", ocr_mode="high")
+        if read_cw_stage_text(runtime, ocr=ocr)["value"] != stage_name:
+            raise TrailError("CW_EVENT_PAGE_MISMATCH", "当前画面与指定选项的页面不一致")
+
+        runtime.click_point(centers[option - 1], card_y)
+        sleep(0.35)
+        panel = read_cw_stage_text(runtime, ocr=ocr)
+        buttons = []
+        for entry in panel["entries"]:
+            bounds = entry["bounds"]
+            text = entry["text"].strip("()（）✓✔ ")
+            if bounds and text == confirm:
+                left, top, right, bottom = bounds
+                y = round((top + bottom) / 2)
+                if confirm_y[0] <= y <= confirm_y[1]:
+                    buttons.append((round((left + right) / 2), y))
+        selection_read = stage_name != "replenish" or any(
+            "已选择1/1" in entry["text"].replace(" ", "") for entry in panel["entries"]
+        )
+        if panel["value"] != stage_name or len(buttons) != 1 or not selection_read:
+            error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，请核对当前画面和确认按钮")
+            error.known_failure_after_save = True
+            raise error
+        runtime.click_point(*buttons[0])
+        sleep(0.5)
+        next_stage = read_cw_stage_text(runtime, ocr=ocr)["value"]
+        if next_stage == stage_name or (stage_name == "invest" and next_stage is None):
+            error = TrailError("CW_EVENT_CONFIRM_UNCONFIRMED", "已尝试确认，请核对当前画面")
+            error.known_failure_after_save = True
+            raise error
+
+    return chooser
+
+
+def _selected_invest_card(image):
+    """Identify only a complete bright outline on the known 1080p card layout."""
+    if image is None or image.size != (1920, 1080):
+        return None
+    image = image.convert("RGB")
+    pixels = image.load()
+    def white(x, y):
+        rgb = pixels[x, y]
+        return min(rgb) > 192 and max(rgb) - min(rgb) < 55
+    def outlined(left, right):
+        horizontal = lambda y: sum(white(x, y) for x in range(left + 30, right - 30)) / (right - left - 60)
+        vertical = lambda x: sum(white(x, y) for y in range(220, 790)) / 570
+        return (max(horizontal(y) for y in range(185, 212)) > .5
+                and max(horizontal(y) for y in range(809, 836)) > .5
+                and max(vertical(x) for x in range(left - 7, left + 18)) > .5
+                and max(vertical(x) for x in range(right - 17, right + 8)) > .5)
+    selected = [idx for idx, (left, right) in enumerate(((244, 671), (747, 1174), (1250, 1677)), 1)
+                if outlined(left, right)]
+    return selected[0] if len(selected) == 1 else None
+
+
+def _invest_observation(runtime, ocr):
+    capture = getattr(runtime, "capture_image", None)
+    if not callable(capture) or not callable(getattr(runtime, "ocr_image", None)):
+        raise TrailError("CW_EVENT_PAGE_MISMATCH", "无法读取投资页面截图")
+    image = capture()
+    return read_cw_stage_text(runtime, image=image, ocr=ocr), image
+
+
+def _invest_title(panel, option):
+    left, right = ((244, 671), (747, 1174), (1250, 1677))[option - 1]
+    titles = []
+    for entry in panel["entries"]:
+        bounds = entry["bounds"]
+        if bounds:
+            x, y = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
+            if left < x < right and 470 <= y <= 515 and entry["text"].strip():
+                titles.append(entry["text"].strip())
+    return titles[0] if len(titles) == 1 else None
+
+
+def _confirmed_invest_successor(panel):
+    if panel["value"] != "preparation":
+        return None
+    header = project_cw_preparation_header(panel)
+    if not header["node"]:
+        return None
+    def positioned(texts, region):
+        for entry in panel["entries"]:
+            b = entry["bounds"]
+            if b and any(text in entry["text"] for text in texts):
+                x, y = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+                if region[0] <= x <= region[2] and region[1] <= y <= region[3]:
+                    return True
+        return False
+    if not positioned(("备战阶段",), (390, 15, 540, 70)):
+        return None
+    if not (positioned(("出战",), (1650, 690, 1920, 830)) or
+            positioned(("购买经验",), (180, 810, 370, 970))):
+        return None
+    return header
+
+
+def _choose_invest(runtime, option, *, expected_title=None):
+    if type(option) is not int or option not in (1, 2, 3):
+        raise TrailError("CW_OPTION_INVALID", f"invalid currency wars option: {option}")
+    ocr = OcrRequestConfig(lang="ch", ocr_mode="high")
+    panel, _ = _invest_observation(runtime, ocr)
+    if panel["value"] != "invest":
+        raise TrailError("CW_EVENT_PAGE_MISMATCH", "当前画面与投资页面不一致")
+    runtime.click_point((460, 960, 1460)[option - 1], 400)
+    sleep(0.35)
+    try:
+        panel, image = _invest_observation(runtime, ocr)
+    except TrailError as cause:
+        error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，无法核对当前画面")
+        error.known_failure_after_save = True
+        raise error from cause
+    buttons = []
+    for entry in panel["entries"]:
+        bounds = entry["bounds"]
+        if bounds and entry["text"].strip() == "确认":
+            l, t, r, b = bounds
+            x, y = round((l + r) / 2), round((t + b) / 2)
+            if 770 <= x <= 1150 and 960 <= y <= 1020:
+                buttons.append((x, y))
+    title = _invest_title(panel, option)
+    if (panel["value"] != "invest" or _selected_invest_card(image) != option or len(buttons) != 1
+            or not title or (expected_title is not None and title != expected_title)):
+        error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，请核对卡片和确认按钮")
+        error.known_failure_after_save = True
+        raise error
+    runtime.click_point(*buttons[0])
+    previous = None
+    for _ in range(5):
+        sleep(0.3)
+        try:
+            panel, _ = _invest_observation(runtime, ocr)
+        except TrailError as cause:
+            error = TrailError("CW_EVENT_CONFIRM_UNCONFIRMED", "已尝试确认，无法核对当前画面")
+            error.known_failure_after_save = True
+            raise error from cause
+        current = _confirmed_invest_successor(panel)
+        if current is not None and current == previous:
+            return {"title": title, "successor": current}
+        previous = current
+    error = TrailError("CW_EVENT_CONFIRM_UNCONFIRMED", "已尝试确认，请核对当前画面")
+    error.known_failure_after_save = True
+    raise error
+
+
 def build_cw_replenish_chooser(runtime) -> OptionChooser:
-    return _build_option_chooser(runtime, option_points=REPLENISH_OPTION_POINTS, confirm_point=REPLENISH_CONFIRM_POINT)
+    return _build_season_two_option_chooser(
+        runtime, stage_name="replenish", centers=(252, 606, 960, 1315, 1671), card_y=422,
+        confirm="确认", confirm_y=(960, 1020),
+    )
 
 
-def build_cw_invest_chooser(runtime) -> OptionChooser:
-    return _build_option_chooser(runtime, option_points=INVEST_OPTION_POINTS, confirm_point=INVEST_CONFIRM_POINT)
+def build_cw_invest_chooser(runtime, *, expected_title=None) -> OptionChooser:
+    def chooser(option):
+        chooser.evidence = _choose_invest(runtime, option, expected_title=expected_title)
+        return chooser.evidence
+    chooser.evidence = None
+    return chooser
 
 
 def build_cw_encounter_chooser(runtime) -> OptionChooser:
-    return _build_option_chooser(runtime, option_points=ENCOUNTER_OPTION_POINTS, confirm_point=ENCOUNTER_CONFIRM_POINT)
+    return _build_season_two_option_chooser(
+        runtime, stage_name="encounter", centers=(660, 1254), card_y=483,
+        confirm="选择", confirm_y=(880, 930),
+    )
 
 
 def build_cw_fortune_chooser(runtime) -> OptionChooser:
@@ -370,6 +517,59 @@ def build_cw_event_router(runtime) -> CwEventRouter:
     return router
 
 
+def open_cw_plot_armor_reselect(runtime, *, option: int | None = None) -> dict:
+    if option is not None and (type(option) is not int or not 1 <= option <= 3):
+        raise TrailError("CW_AURA_OPTION_INVALID", "光环卡片的位置从左至右为 1 到 3")
+    panel = read_cw_stage_text(runtime)
+    opened_details = panel["value"] == "preparation"
+    if opened_details:
+        runtime.click_point(225, 190)
+        sleep(0.5)
+        panel = read_cw_stage_text(runtime)
+    if panel["value"] != "plot_armor_details":
+        error = TrailError("CW_AURA_DETAILS_UNCONFIRMED", "未确认进入主角光环与奇遇详情")
+        error.known_failure_after_save = opened_details
+        raise error
+    if option is None:
+        return panel
+
+    reading = []
+    try:
+        image = runtime.capture_image(normalize=True)
+        if image is not None and image.size == (1920, 1080):
+            region = _AURA_RESELECT_ROW
+            crop = image.crop((region["from_x"], region["from_y"], region["to_x"], region["to_y"]))
+            reading = runtime.ocr_image(crop, ocr=OcrRequestConfig(lang="ch", ocr_mode="high")) or []
+    except (AttributeError, TypeError, ValueError):
+        pass
+    buttons = []
+    for piece in reading:
+        box = _normalize_ocr_piece(piece)
+        if box is None or _normalized_action_text(box["text"]) != "重选主角":
+            continue
+        x, y = _box_center(box)
+        buttons.append((x + _AURA_RESELECT_ROW["from_x"], y + _AURA_RESELECT_ROW["from_y"]))
+
+    # Positions map to physical cards so a locked slot never shifts later buttons left.
+    layout = resolve_cw_plot_armor_card_layout([x - _AURA_RESELECT_TEXT_OFFSET_X for x, _ in buttons])
+    targets = []
+    if layout is not None and option <= len(layout):
+        button_x = layout[option - 1] + _AURA_RESELECT_TEXT_OFFSET_X
+        targets = [point for point in buttons if abs(point[0] - button_x) <= PLOT_ARMOR_CARD_X_TOLERANCE]
+    if len(targets) != 1:
+        error = TrailError("CW_AURA_OPTION_UNAVAILABLE", "该光环卡片未识别到可用的重选按钮")
+        error.known_failure_after_save = opened_details
+        raise error
+    runtime.click_point(*targets[0])
+    sleep(0.5)
+    confirmation = read_cw_stage_text(runtime)
+    if confirmation["value"] != "plot_armor":
+        error = TrailError("CW_AURA_RESELECT_UNCONFIRMED", "未确认打开光环重选提示")
+        error.known_failure_after_save = True
+        raise error
+    return confirmation
+
+
 def build_cw_boss_preview_confirmer(runtime) -> SceneAction:
     return lambda: runtime.click_point(*BOSS_PREVIEW_CONFIRM_POINT)
 
@@ -430,7 +630,7 @@ def build_cw_battle_continuer(runtime) -> SceneAction:
 
 def read_cw_replenish(session: SessionModel) -> dict[str, list[int]]:
     del session
-    return {"options": [1, 2, 3]}
+    return {"options": [1, 2, 3, 4, 5]}
 
 
 def choose_cw_replenish(session: SessionModel, *, option: int, chooser: OptionChooser) -> SessionModel:
@@ -445,8 +645,21 @@ def read_cw_invest(session: SessionModel) -> dict[str, list[int]]:
 
 
 def choose_cw_invest(session: SessionModel, *, option: int, chooser: OptionChooser) -> SessionModel:
-    chooser(option)
+    try:
+        evidence = chooser(option)
+    except TrailError as error:
+        if error.code in {"CW_EVENT_OPTION_UNCONFIRMED", "CW_EVENT_CONFIRM_UNCONFIRMED"}:
+            strategy = ensure_cw_state(session).get("strategy")
+            if isinstance(strategy, dict):
+                strategy["stale"] = True
+            mark_cw_stage_stale(session)
+        raise
+    strategy = ensure_cw_state(session).get("strategy")
+    if isinstance(strategy, dict):
+        strategy["stale"] = True
     mark_cw_stage_stale(session)
+    if isinstance(evidence, dict) and isinstance(evidence.get("successor"), dict):
+        _replace_stage_fields(session, value=evidence["successor"]["stage"], stale=False)
     return session
 
 

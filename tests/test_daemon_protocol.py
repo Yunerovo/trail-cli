@@ -1166,6 +1166,32 @@ def test_command_service_handles_state_dump(tmp_path: Path):
     assert payload["data"]["session_id"] == session.session_id
 
 
+def test_command_service_state_dump_can_read_just_the_cw_run(tmp_path: Path):
+    from trail.scenes.cw.run_facts import record_cw_opening, start_cw_run_facts
+
+    registry = SessionServiceRegistry()
+    service = registry.for_workspace(str(tmp_path))
+    session = service.create_session(window_binding={"title": "崩坏：星穹铁道", "hwnd": 1})
+    previous_run_id = start_cw_run_facts(session)["run_id"]
+    run_facts = start_cw_run_facts(session)
+    record_cw_opening(session, {"affixes": [{"name": "坠入陷阱", "description": "行动延后20%"}]})
+    service.save_session(session)
+    commands = CommandService(runtime_service=SimpleNamespace(), session_service=registry)
+    payload = commands.handle(DaemonRequest(
+        request_id="req-cw-run-facts",
+        protocol_version=PROTOCOL_VERSION,
+        workspace_root=str(tmp_path),
+        session_id=session.session_id,
+        verbose=False,
+        method="state.dump",
+        payload={"session_id": session.session_id, "cw_run": True},
+    ))
+
+    assert payload["ok"] is True
+    assert payload["data"] == {"session_id": session.session_id, "cw_run": run_facts}
+    assert payload["data"]["cw_run"]["run_id"] != previous_run_id
+
+
 def test_command_service_routes_guide_fetch_select_through_run_mutation(tmp_path: Path, monkeypatch):
     registry = SessionServiceRegistry()
     session = registry.for_workspace(str(tmp_path)).create_session(window_binding={"title": "崩坏：星穹铁道", "hwnd": 1})
@@ -4082,7 +4108,7 @@ def test_cw_equipment_read_reuses_recognition_screenshot(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "trail.scenes.cw.equipment.read_cw_equipment",
-        lambda runtime, workspace_root=None, raw_config=None, recognizer=None, request_id=None: {
+        lambda runtime, workspace_root=None, raw_config=None, recognizer=None, request_id=None, read_consumables=False: {
             "count": 0,
             "uncertain": 0,
             "empty": 60,
@@ -6647,6 +6673,12 @@ def test_cw_strategy_select_handler_routes_through_mutation_journal(tmp_path: Pa
         return {"card_idx": card_idx, "strategy_title": "回蓝"}
 
     monkeypatch.setattr("trail.daemon.cw_service.select_cw_strategy", fake_select)
+    monkeypatch.setattr("trail.daemon.cw_service.sleep", lambda seconds: None)
+    monkeypatch.setattr(
+        "trail.daemon.cw_service.read_cw_preparation_header",
+        lambda runtime: {"stage": "invest", "node": "1-2", "hp": None},
+    )
+    monkeypatch.setattr("trail.daemon.cw_service.read_cw_stage_text", lambda runtime: {"value": "preparation"})
     command_service = CommandService(runtime_service=runtime_service, session_service=registry, cw_service=cw_service)
     request = DaemonRequest(
         request_id="req-cw-strategy-select",
@@ -6661,6 +6693,8 @@ def test_cw_strategy_select_handler_routes_through_mutation_journal(tmp_path: Pa
     payload = command_service.handle(request)
 
     assert payload["ok"] is True
+    saved = service.load_session(session.session_id).scene_state["cw"]["run_facts"]
+    assert saved["investment_strategies"] == [{"name": "回蓝", "node": "1-2", "description": None}]
     assert payload["data"] == {"card_idx": 2, "strategy_title": "回蓝"}
     assert payload["screenshot"] == ".trail/shots/req-cw-strategy-select.png"
     assert runtime.capture_requests == [(False, "req-cw-strategy-select")]
@@ -8474,6 +8508,18 @@ def test_command_service_cw_battle_run_collects_prep_facts_after_completed_prepa
 
     monkeypatch.setattr("trail.daemon.cw_service.run_cw_battle", fake_run_cw_battle)
     _patch_cw_portal_select_auto_collect_success(monkeypatch, events)
+    observations = iter([
+        ({"value": "preparation", "entries": []}, None),
+        ({"value": "preparation", "entries": [{"text": "商店", "bounds": (1603, 975, 1653, 1002)}]}, None),
+        ({"value": "shop", "entries": [{"text": "收起商店", "bounds": (1603, 975, 1653, 1002)}]}, None),
+    ])
+    monkeypatch.setattr("trail.daemon.cw_service._observe_battle_collection_page", lambda runtime: next(observations))
+    runtime.click_point = lambda x, y: events.append("shop.close")
+    def close_shop(session, closer):
+        closer()
+        session.scene_state.setdefault("cw", {})["shop"] = {"opened": False, "stale": True}
+        return session
+    monkeypatch.setattr("trail.daemon.cw_service.close_cw_shop", close_shop)
     command_service = CommandService(
         runtime_service=runtime_service,
         session_service=registry,
@@ -8492,7 +8538,7 @@ def test_command_service_cw_battle_run_collects_prep_facts_after_completed_prepa
         )
     )
 
-    assert payload["ok"] is True
+    assert payload["ok"] is True, payload
     data = payload["data"]
     assert data["status"] == "completed"
     assert data["stage"] == "preparation"
@@ -8504,8 +8550,7 @@ def test_command_service_cw_battle_run_collects_prep_facts_after_completed_prepa
     assert events == [
         "battle.run(45)",
         "crystal.collect",
-        "slots.dismiss",
-        "slots.reader({'targets': None, 'request_id': 'req-cw-battle-run-prep', 'dismiss_initial_overlay': False})",
+        "slots.reader({'targets': None, 'request_id': 'req-cw-battle-run-prep', 'dismiss_initial_overlay': False, 'collapse_expanded_hand': False})",
         "slots.read",
         "shop.open",
         "shop.scan",

@@ -47,13 +47,13 @@ def _fill_fee_strip(crop: Image.Image, color: tuple[int, int, int, int]) -> Imag
     return result
 
 
-def _loaded_real_recognizer() -> VectorRoleIconRecognizer:
+def _loaded_real_recognizer(bundle_root: Path) -> VectorRoleIconRecognizer:
     payload = json.loads(
-        (ROOT / "trail/scenes/cw/generated/4.2/roles/features.json").read_text(encoding="utf-8")
+        (bundle_root / "roles/features.json").read_text(encoding="utf-8")
     )
     empty_templates = {
-        "field": Image.open(ROOT / "trail/scenes/cw/generated/4.2/roles/empty/field-v1.png").convert("RGBA"),
-        "hand": Image.open(ROOT / "trail/scenes/cw/generated/4.2/roles/empty/hand-v1.png").convert("RGBA"),
+        "field": Image.open(bundle_root / "roles/empty/field-v1.png").convert("RGBA"),
+        "hand": Image.open(bundle_root / "roles/empty/hand-v1.png").convert("RGBA"),
     }
     return VectorRoleIconRecognizer.from_precomputed_features(payload, empty_templates=empty_templates)
 
@@ -137,6 +137,7 @@ def test_fee_tier_mapping_is_frozen():
     assert fee_color_for_tier("4") == "purple"
     assert fee_color_for_tier("5") == "gold"
     assert fee_color_for_tier(6) == "unknown"
+    assert fee_color_for_tier(7) == "pink"
     assert fee_color_for_tier(None) == "unknown"
 
 
@@ -272,6 +273,33 @@ def test_star_detection_detects_template_and_returns_schema():
     assert detections[0]["scale"] in {0.65, 0.75, 0.80}
     assert 10 <= detections[0]["x"] < 91
     assert 82 <= detections[0]["y"] < 114
+
+
+def test_star_detection_counts_four_stars():
+    crop = Image.new("RGBA", SLOT_TARGET_SIZE, (0, 0, 0, 255))
+    with Image.open(ROOT / "trail/scenes/cw/assets/star.png") as source:
+        star = source.convert("RGBA").resize((round(source.width * 0.75), round(source.height * 0.75)))
+    for x in (13, 32, 51, 70):
+        crop.alpha_composite(star, dest=(x, 90))
+
+    assert len(detect_slot_stars(crop)) == 4
+
+
+def test_season_two_aha_uses_fee_evidence_and_preserves_unknown_variant():
+    bundle_root = ROOT / "trail/scenes/cw/generated/4.7"
+    manifest = json.loads((bundle_root / "roles/manifest.json").read_text(encoding="utf-8"))
+    recognizer = _loaded_real_recognizer(bundle_root)
+    role = next(item for item in manifest["items"] if item["role_id"] == "151112")
+    with Image.open(bundle_root / role["local_path"]) as icon:
+        crop = Image.new("RGBA", SLOT_TARGET_SIZE, (0, 0, 0, 255))
+        left, top, right, bottom = role_recognition.ROLE_AVATAR_ROI
+        crop.alpha_composite(icon.convert("RGBA").resize((right - left, bottom - top)), (left, top))
+    assert recognizer.recognize_crop(_fill_fee_strip(crop, (95, 53, 180, 255)), "front").role_id == "151112"
+    assert recognizer.recognize_crop(_fill_fee_strip(crop, (255, 212, 113, 255)), "front").role_id == "151122"
+    assert recognizer.recognize_crop(_fill_fee_strip(crop, (235, 71, 115, 255)), "front").role_id == "151132"
+    unknown = recognizer.recognize_crop(_fill_fee_strip(crop, (0, 0, 0, 255)), "front")
+    assert unknown.name == "星神★阿哈"
+    assert unknown.role_id is None
 
 
 def test_star_template_resize_uses_cv2_inter_area(monkeypatch):
@@ -453,6 +481,20 @@ def test_recognizer_uses_payload_confidence_and_empty_thresholds(monkeypatch):
     assert result.confidence_reason == "icon_fee_match"
 
 
+def test_season_two_field_background_is_empty_despite_legacy_template():
+    recognizer = VectorRoleIconRecognizer.from_precomputed_features(
+        _single_role_payload(),
+        empty_templates={
+            key: Image.new("RGBA", (103, 120), (20, 22, 26, 255))
+            for key in ("field", "hand")
+        },
+    )
+    crop = Image.new("RGBA", (103, 120), (48, 37, 104, 255))
+    for area in ("front", "back"):
+        result = recognizer.recognize_crop(crop, area)
+        assert result.empty and result.name is None
+
+
 def test_empty_template_validation_rejects_missing_or_wrong_size():
     payload = build_precomputed_role_features(
         [
@@ -541,7 +583,10 @@ def test_real_fixture_field_empty_score_exceeds_threshold():
 
 @pytest.mark.slow
 def test_real_fixture_full_role_recognition_visible_facts():
-    recognizer = _loaded_real_recognizer()
+    legacy_bundle = ROOT / "trail/scenes/cw/generated/4.2"
+    if not legacy_bundle.exists():
+        pytest.skip("4.2 实机截图需要对应的历史识别资源")
+    recognizer = _loaded_real_recognizer(legacy_bundle)
     image = Image.open(ROOT / "tests/fixtures/cw/slots-icon/current-prep.jpg").convert("RGBA")
     expected = {
         ("front", 0): ("银枝", 2),

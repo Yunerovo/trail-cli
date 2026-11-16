@@ -330,12 +330,12 @@ class SessionService:
             return self._save_call_record(record)
 
     def get_job_record(self, job_id: str) -> dict | None:
-        with self._mutex:
+        with self._journal_locked():
             record = self._load_job_record(job_id)
             return deepcopy(record) if record is not None else None
 
     def get_call_record(self, call_id: str) -> dict | None:
-        with self._mutex:
+        with self._journal_locked():
             record = self._load_call_record(call_id)
             return deepcopy(record) if record is not None else None
 
@@ -404,6 +404,10 @@ class SessionService:
 
     def dump_state(self, *, session_id: str) -> dict:
         snapshot = self.load_session(session_id).to_dict()
+        cw_state = snapshot.get("scene_state", {}).get("cw")
+        if isinstance(cw_state, dict) and isinstance(cw_state.get("run_facts"), dict):
+            from trail.scenes.cw.run_facts import project_cw_run_facts
+            cw_state["run_facts"] = project_cw_run_facts(cw_state["run_facts"])
         snapshot.setdefault("scene_state", {}).setdefault("daemon", {})["tainted"] = self.is_session_tainted(session_id)
         return snapshot
 

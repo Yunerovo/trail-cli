@@ -563,6 +563,8 @@ def test_select_cw_strategy_requires_fresh_snapshot(tmp_path: Path, monkeypatch)
 
 
 def test_select_cw_strategy_marks_strategy_and_stage_stale_on_success(tmp_path: Path, monkeypatch):
+    from trail.scenes.cw import events
+    monkeypatch.setattr(events, "build_cw_invest_chooser", lambda runtime, **kwargs: lambda idx: runtime.clicks.append(idx))
     strategy_module = load_cw_strategy_module()
     session = build_session(tmp_path)
     runtime = StrategyRuntime()
@@ -590,13 +592,12 @@ def test_select_cw_strategy_marks_strategy_and_stage_stale_on_success(tmp_path: 
     assert session.scene_state["cw"]["strategy"]["stale"] is True
     assert session.scene_state["cw"]["stage"] == {"value": "invest", "stale": True}
     assert session.last_stage is None
-    assert runtime.clicks == [
-        strategy_module._strategy_card_point(2),
-        strategy_module.STRATEGY_CONFIRM_POINT,
-    ]
+    assert runtime.clicks == [2]
 
 
 def test_select_cw_strategy_supports_sparse_snapshot_card_idx_roundtrip(tmp_path: Path, monkeypatch):
+    from trail.scenes.cw import events
+    monkeypatch.setattr(events, "build_cw_invest_chooser", lambda runtime, **kwargs: lambda idx: runtime.clicks.append(idx))
     strategy_module = load_cw_strategy_module()
     session = build_session(tmp_path)
     runtime = StrategyRuntime()
@@ -623,10 +624,7 @@ def test_select_cw_strategy_supports_sparse_snapshot_card_idx_roundtrip(tmp_path
     assert session.scene_state["cw"]["strategy"]["stale"] is True
     assert session.scene_state["cw"]["stage"] == {"value": "invest", "stale": True}
     assert session.last_stage is None
-    assert runtime.clicks == [
-        strategy_module._strategy_card_point(3),
-        strategy_module.STRATEGY_CONFIRM_POINT,
-    ]
+    assert runtime.clicks == [3]
 
 
 def test_select_cw_strategy_rejects_missing_card_idx_in_sparse_snapshot(tmp_path: Path, monkeypatch):

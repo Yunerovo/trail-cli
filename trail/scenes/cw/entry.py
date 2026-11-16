@@ -8,6 +8,8 @@ from trail.core.errors import TrailError
 from trail.runtime.ocr_config import OcrRequestConfig
 from trail.runtime.resources import resolve_scene_asset
 from trail.scenes.cw.models import ensure_cw_state
+from trail.scenes.cw.opening import collect_cw_opening
+from trail.scenes.cw.run_facts import record_cw_opening, start_cw_run_facts
 from trail.scenes.cw.stage import (
     STAGE_RESOURCE_ALIASES,
     _detect_cw_stage_from_ocr,
@@ -32,7 +34,7 @@ OVERCLOCK_BATTLE_MODE_POINT = (int(CW_WIDTH * 0.15625), int(CW_HEIGHT * 0.4167))
 ENTRY_PRE_DIFFICULTY_OCR_SETTLE_SECONDS = 2.0
 HOME_UNFINISHED_PROGRESS_PRIMARY = "继续进度"
 HOME_UNFINISHED_PROGRESS_SECONDARY = ("结束并结算", "当前进度")
-HOME_SCREEN_KEYWORDS = ("货币战争", "开始「货币战争」", "零和博弈", "创业指南", "优势布局", "攻略大全", "积分奖励", "当前积分")
+HOME_SCREEN_KEYWORDS = ("货币战争", "开始「货币战争」", "零和博弈", "入画奇航", "创业指南", "优势布局", "攻略大全", "积分奖励", "当前积分")
 SETTLEMENT_CONTINUE_PRIMARY = ("挑战成功", "挑战失败")
 SETTLEMENT_CONTINUE_NEXT = ("下一步", "下一页")
 SETTLEMENT_CONTINUE_RETURN = "返回货币战争"
@@ -927,8 +929,23 @@ def _select_difficulty(runtime, *, difficulty: str, after_input: bool = False) -
     raise TrailError("CW_ENTRY_DIFFICULTY_INVALID", f"不支持的货币战争难度: {difficulty}")
 
 
-def _handle_boss_info_flow(runtime) -> None:
-    _click_box_center(runtime, _wait(runtime, "stage.settle"))
+def _capture_opening_if_present(runtime, session, *, check_cancelled=lambda: None) -> bool:
+    try:
+        opening = collect_cw_opening(runtime, check_cancelled=check_cancelled)
+    except TrailError as error:
+        if error.code != "CW_OPENING_OVERVIEW_REQUIRED":
+            raise
+        return False
+    record_cw_opening(session, opening)
+    return True
+
+
+def _handle_boss_info_flow(runtime, *, session=None, check_cancelled=lambda: None) -> None:
+    box = _wait(runtime, "stage.settle")
+    if session is not None and callable(getattr(runtime, "ocr", None)):
+        _capture_opening_if_present(runtime, session, check_cancelled=check_cancelled)
+    check_cancelled()
+    _click_box_center(runtime, box)
 
 
 def _consume_click_blank_prompt(runtime) -> None:
@@ -939,7 +956,7 @@ def _handle_invest_environment_flow(runtime) -> None:
     _wait(runtime, "entry.invest_environment")
 
 
-def _continue_from_settlement_chain(runtime, *, difficulty: str, battle_mode: str) -> None:
+def _continue_from_settlement_chain(runtime, *, difficulty: str, battle_mode: str, session=None, check_cancelled=lambda: None) -> None:
     for _ in range(6):
         current = _detect_current_enter_page(runtime, preferred_mode="continue")
         page = current["page"]
@@ -951,13 +968,14 @@ def _continue_from_settlement_chain(runtime, *, difficulty: str, battle_mode: st
             runtime.click_point(*SETTLEMENT_CONTINUE_POINT)
             _transition_sleep(SETTLEMENT_CONTINUE_SETTLE_SECONDS)
             start_box = _wait(runtime, "entry.start")
-            _enter_from_start_page(runtime, mode="new", difficulty=difficulty, battle_mode=battle_mode, start_box=start_box)
+            _enter_from_start_page(runtime, mode="new", difficulty=difficulty, battle_mode=battle_mode,
+                                   start_box=start_box, session=session, check_cancelled=check_cancelled)
             return
         raise CwStartContinuePageError(page=page, stage=current.get("stage"))
     raise TrailError("CW_START_CONTINUE_TIMEOUT", "cw start --mode continue did not finish the whole-run settlement chain in time")
 
 
-def _enter_from_start_page(runtime, *, mode: str, difficulty: str, battle_mode: str, start_box=None) -> None:
+def _enter_from_start_page(runtime, *, mode: str, difficulty: str, battle_mode: str, start_box=None, session=None, check_cancelled=lambda: None) -> None:
     if start_box is None:
         start_box = _wait(runtime, "entry.start")
     current = _detect_current_enter_page(runtime, preferred_mode=mode)
@@ -977,7 +995,7 @@ def _enter_from_start_page(runtime, *, mode: str, difficulty: str, battle_mode: 
         raise CwStartProgressPendingError(after_start_click=True)
     _select_battle_mode(runtime, battle_mode=battle_mode)
     if mode == "new":
-        _enter_new_game(runtime, difficulty=difficulty)
+        _enter_new_game(runtime, difficulty=difficulty, session=session, check_cancelled=check_cancelled)
         return
     _enter_continue_game(runtime)
     _handle_invest_environment_flow(runtime)
@@ -1094,12 +1112,12 @@ def _detect_current_enter_page(
     return {"page": "world"}
 
 
-def _enter_new_game(runtime, *, difficulty: str) -> None:
+def _enter_new_game(runtime, *, difficulty: str, session=None, check_cancelled=lambda: None) -> None:
     _click_box_center(runtime, _wait(runtime, "entry.new"))
     _transition_sleep(ENTRY_PRE_DIFFICULTY_OCR_SETTLE_SECONDS)
     _select_difficulty(runtime, difficulty=difficulty, after_input=True)
     _click_box_center(runtime, _wait(runtime, "entry.start_game"))
-    _handle_boss_info_flow(runtime)
+    _handle_boss_info_flow(runtime, session=session, check_cancelled=check_cancelled)
     _consume_click_blank_prompt(runtime)
     _handle_invest_environment_flow(runtime)
 
@@ -1158,6 +1176,8 @@ def _run_start_chain(
     difficulty: str,
     battle_mode: str,
     existing_entry: Mapping[str, object],
+    session,
+    check_cancelled=lambda: None,
 ) -> dict[str, str | None]:
     page = current["page"]
     if page == "home":
@@ -1166,18 +1186,19 @@ def _run_start_chain(
         if mode == "continue":
             raise CwStartContinuePageError(page="home")
         start_box = _locate(runtime, "entry.start")
-        _enter_from_start_page(runtime, mode=mode, difficulty=difficulty, battle_mode=battle_mode, start_box=start_box)
+        _enter_from_start_page(runtime, mode=mode, difficulty=difficulty, battle_mode=battle_mode,
+                               start_box=start_box, session=session, check_cancelled=check_cancelled)
         return {"mode": mode, "difficulty": difficulty, "battle_mode": battle_mode}
     if page == "settlement.entry" or page == "settlement.followup" or page == "settlement.return":
         if mode != "continue":
             raise CwStartNewPageError(page=page)
-        _continue_from_settlement_chain(runtime, difficulty=difficulty, battle_mode=battle_mode)
+        _continue_from_settlement_chain(runtime, difficulty=difficulty, battle_mode=battle_mode, session=session, check_cancelled=check_cancelled)
         return {"mode": "new", "difficulty": difficulty, "battle_mode": battle_mode}
     if page == "entry.new":
         if mode != "new":
             raise CwStartContinuePageError(page="entry.new")
         _select_battle_mode(runtime, battle_mode=battle_mode)
-        _enter_new_game(runtime, difficulty=difficulty)
+        _enter_new_game(runtime, difficulty=difficulty, session=session, check_cancelled=check_cancelled)
         return {"mode": "new", "difficulty": difficulty, "battle_mode": battle_mode}
     if page == "entry.continue":
         if mode != "new":
@@ -1216,6 +1237,8 @@ def _run_start_chain(
                 page="stage.boss_preview",
                 fields=("mode", "difficulty", "battle_mode"),
             )
+        if _capture_opening_if_present(runtime, session, check_cancelled=check_cancelled):
+            _handle_boss_info_flow(runtime, check_cancelled=check_cancelled)
         _consume_click_blank_prompt(runtime)
         _handle_invest_environment_flow(runtime)
         return {
@@ -1235,6 +1258,7 @@ def start_cw(
     difficulty: str,
     battle_mode: str,
     runtime,
+    check_cancelled=lambda: None,
 ) -> SessionModel:
     cw_state = ensure_cw_state(session)
     existing_entry = cw_state.get("entry") if isinstance(cw_state.get("entry"), Mapping) else {}
@@ -1264,6 +1288,8 @@ def start_cw(
         )
         return session
 
+    if current["page"] in {"home", "entry.new", "settlement.entry", "settlement.followup", "settlement.return"}:
+        start_cw_run_facts(session)
     resolved_entry = _run_start_chain(
         runtime,
         current=current,
@@ -1271,6 +1297,8 @@ def start_cw(
         difficulty=difficulty,
         battle_mode=battle_mode,
         existing_entry=existing_entry,
+        session=session,
+        check_cancelled=check_cancelled,
     )
     _persist_start_entry(
         session,

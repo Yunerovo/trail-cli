@@ -3914,3 +3914,45 @@ def test_cw_shop_buy_slot_persists_known_failure_when_confirmation_fails_after_p
     assert status["tainted"] is False
     assert persisted.scene_state["cw"]["guide"] == before_guide
     assert persisted.scene_state["cw"]["shop"]["items"] == [{"name": "银狼", "price": 20}]
+
+
+def test_parse_shop_items_uses_real_scan_width_when_rightmost_ocr_is_missing():
+    shop = load_cw_shop_module()
+    def row(text, x1, x2, y):
+        return ([[x1, y], [x2, y], [x2, y + 12], [x1, y + 12]], text, 0.99)
+    pieces = [row("托帕&账账", 285, 400, 3), row("1", 487, 502, 30),
+              row("那刻夏", 580, 650, 3), row("1", 745, 755, 30),
+              row("真珠", 1080, 1150, 3)]
+    items, _ = shop._parse_shop_items(pieces, scan_width=1325)
+    assert items[1] == {"slot": 2, "name": "托帕&账账", "price": 1}
+    assert items[2] == {"slot": 3, "name": "那刻夏", "price": 1}
+    assert items[4]["name"] is None
+
+
+@pytest.mark.parametrize("complete_retry", [True, False])
+def test_reconcile_shop_reader_retries_only_missing_lane_from_same_crop(monkeypatch, complete_retry):
+    from PIL import Image
+    from types import SimpleNamespace
+    shop = load_cw_shop_module()
+    image = Image.new("RGB", (1325, 54))
+    for slot in range(5):
+        image.paste((slot * 40, 0, 0), (slot * 265, 0, (slot + 1) * 265, 54))
+    pieces = []
+    for slot in range(4):
+        left = slot * 265
+        pieces += [([[left + 20, 5], [left + 100, 5], [left + 100, 18], [left + 20, 18]], "角色", .99),
+                   ([[left + 190, 30], [left + 205, 30], [left + 205, 45], [left + 190, 45]], "1", .99)]
+    calls = []
+    class Runtime:
+        def capture_image(self, **kwargs):
+            calls.append("capture")
+            return image if len(calls) == 1 else Image.new("RGB", (83, 54))
+        def ocr_image(self, crop, **kwargs):
+            calls.append((crop.size, crop.getpixel((crop.width // 2, crop.height // 2))[0], kwargs["ocr"].ocr_mode))
+            return [(None, "真珠", .99), *(([(None, "1", .99)]) if complete_retry else [])]
+    monkeypatch.setattr(shop, "run_batch_ocr", lambda *a, **k: SimpleNamespace(by_key={
+        "items": SimpleNamespace(pieces=pieces), "coins": SimpleNamespace(pieces=[(None, "10", .99)])}))
+    result = shop.build_cw_shop_page_snapshot_reader(Runtime(), recover_missing=True)()
+    assert calls == ["capture", "capture", ((530, 108), 160, "high")]
+    assert [row["name"] for row in result["items"][:4]] == ["角色"] * 4
+    assert result["items"][4] == {"slot": 5, "name": "真珠" if complete_retry else None, "price": 1 if complete_retry else None}

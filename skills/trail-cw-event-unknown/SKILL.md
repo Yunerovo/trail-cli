@@ -47,3 +47,7 @@ description: 当 `cw.event.handle` 返回 `event_type=unknown` 且需要手工�
 
 - `references/manual-resolution-guide.md`：未知事件手工处理、截图优先和 reconcile 合同。
 - `evals/triggers.json`：本 skill 与 prep、entry、portal、advanced 的触发和竞争边界。
+
+- 若 `cw.event.reconcile` 关闭商店后仍检测到商店，商店快照保持 stale；若阶段未知则按 `next_action=manual` 先检查画面。若备战采集在商店步骤中断，使用已返回的槽位事实，并根据返回阶段处理剩余 stale 项。
+
+- reconcile 的商店读取若有未确认卡槽会标记商店 stale 并保留待办；不能把未读到的商品当成空槽。

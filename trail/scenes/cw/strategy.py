@@ -101,12 +101,22 @@ def select_cw_strategy(session, *, card_idx: int, runtime) -> dict[str, object]:
     if not isinstance(selected_card, Mapping):
         raise TrailError("CW_STRATEGY_SNAPSHOT_REQUIRED", "cw strategy.select requires fresh strategy snapshot")
 
-    runtime.click_point(*_strategy_card_point(card_idx))
-    runtime.click_point(*STRATEGY_CONFIRM_POINT)
+    from trail.scenes.cw.events import build_cw_invest_chooser
+    try:
+        evidence = build_cw_invest_chooser(runtime, expected_title=selected_card.get("strategy_title"))(card_idx)
+    except TrailError as error:
+        if error.code in {"CW_EVENT_OPTION_UNCONFIRMED", "CW_EVENT_CONFIRM_UNCONFIRMED"}:
+            cw_state["strategy"] = {**snapshot, "stale": True}
+            _invalidate_strategy_stage(session)
+        raise
 
     selected = dict(selected_card)
+    if isinstance(evidence, dict):
+        selected["_selection_evidence"] = evidence
     cw_state["strategy"] = {**snapshot, "stale": True}
     _invalidate_strategy_stage(session)
+    if isinstance(evidence, dict) and isinstance(evidence.get("successor"), dict):
+        _replace_stage_fields(session, value=evidence["successor"]["stage"], stale=False)
     return selected
 
 

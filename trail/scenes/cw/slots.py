@@ -4,19 +4,23 @@ from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
 from difflib import SequenceMatcher
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from time import sleep
 from typing import Any, cast
 
+import cv2
+import numpy as np
 from PIL import Image
 
 from trail.core.errors import TrailError
 from trail.runtime.batch_ocr import BatchOcrTarget, run_batch_ocr
 from trail.scenes.cw import stage
 from trail.scenes.cw.catalog import CwCatalog, build_cw_catalog, resolve_cw_role_id, resolve_cw_role_name, summarize_cw_field_traits
+from trail.scenes.cw.equipment_grid import season_two_shop_overlay
 from trail.scenes.cw.models import ensure_cw_state
-from trail.scenes.cw.role_recognition import CANONICAL_SCREENSHOT_SIZE, iter_slot_specs, warp_slot_crop
+from trail.scenes.cw.role_recognition import CANONICAL_SCREENSHOT_SIZE, SlotSpec, iter_slot_specs, warp_slot_crop
 from trail.scenes.cw.variable_cost import (
     VARIABLE_COST_ROLE_NAME,
     _choice_for_cost,
@@ -122,15 +126,14 @@ SLOT_NAME_REGION = _region(0.78, 0.175, 0.880, 0.2315)
 SLOT_STAR_REGION = _region(0.83, 0.15, 0.87, 0.17)
 CANNOT_BE_FIELDED_REGION = _region(0.25, 0.25, 0.75, 0.75)
 CRYSTAL_DRAG_DURATION_SECONDS = 0.2
-CRYSTAL_DRAG_PATHS = [
-    (*_point(0.68, 0.18), *_point(0.82, 0.18)),
-    (*_point(0.68, 0.25), *_point(0.82, 0.25)),
-    (*_point(0.68, 0.30), *_point(0.83, 0.30)),
-    (*_point(0.68, 0.35), *_point(0.84, 0.35)),
-    (*_point(0.68, 0.40), *_point(0.83, 0.40)),
-]
+CRYSTAL_REGION = (1282, 216, 1624, 490)
+CRYSTAL_SETTLE_SECONDS = 0.5
+CRYSTAL_MAX_SWIPES = 9
 
 OPEN_TEMPLATE_ALIAS = "slots.open"
+WEAPON_BOX_TITLE = "简易武装箱"
+WEAPON_BOX_KIND = "weapon_box"
+WEAPON_BOX_HOLD_SECONDS = 0.35
 CANNOT_BE_FIELDED_ALIAS = "slots.cannot_be_fielded"
 HAND_EXPAND_COLLAPSE_MAX_ATTEMPTS = 5
 SLOT_PANEL_SETTLE_SECONDS = 0.2
@@ -283,7 +286,11 @@ def _collapse_expanded_hand_card(runtime) -> None:
         box = runtime.locate(template)
         if box is None:
             return
-        runtime.click_point(*_box_center(box))
+        x, y = _box_center(box)
+        # Unopened reward cards also use the 「开启」 artwork.
+        if 370 <= x <= 1510 and 912 <= y <= 984:
+            return
+        runtime.click_point(x, y)
         runtime.click_point(*HAND_EXPAND_DISMISS_POINT)
         sleep(SLOT_PANEL_SETTLE_SECONDS)
     raise TrailError("SLOTS_OPEN_STUCK", "手牌展开卡片未关闭，请确认当前在编队界面")
@@ -812,7 +819,8 @@ def _resolve_catalog_slot_value(
             return stable, deepcopy(stable), []
         return _slot_value_from_catalog_match(value, id_match), _slot_response_from_catalog_match(value, id_match), []
 
-    match = resolve_cw_role_name(name, catalog, position=position)
+    cost = value.get("cost") or value.get("rarity") if isinstance(value, dict) else None
+    match = resolve_cw_role_name(name, catalog, position=position, cost=cost)
     if match is None:
         return None, None, []
     if is_cw_variable_cost_role(name) and not is_cw_variable_cost_role(match.name):
@@ -866,6 +874,8 @@ def _canonicalize_slot_value(
     authoritative_candidates: list[str],
     slot_candidates: list[str],
 ) -> tuple[Any, Any, list[dict[str, Any]]]:
+    if isinstance(value, dict) and value.get("kind") == WEAPON_BOX_KIND:
+        return value, value, []
     stable, response, warnings = _resolve_catalog_slot_value(
         value,
         catalog=catalog,
@@ -933,6 +943,8 @@ def _slots_read_empty_snapshot(
     merged_back: list[Any],
     merged_hand: list[Any],
 ) -> bool:
+    if any(isinstance(value, dict) and value.get("kind") == WEAPON_BOX_KIND for value in hand):
+        return False
     if parsed_targets is None:
         return not _snapshot_has_any_name(front, back, hand)
     if previous.get("stale", True) is False:
@@ -943,7 +955,7 @@ def _slots_read_empty_snapshot(
 def _slot_role_count(front: list[Any], back: list[Any], hand: list[Any]) -> dict[str, int]:
     front_count = sum(1 for item in front if item)
     back_count = sum(1 for item in back if item)
-    hand_count = sum(1 for item in hand if item)
+    hand_count = sum(1 for item in hand if _slot_value_name(item))
     return {
         "front": front_count,
         "back": back_count,
@@ -1012,6 +1024,67 @@ def _runtime_slots_image(runtime) -> Image.Image:
     if image.size != CANONICAL_SCREENSHOT_SIZE:
         raise TrailError("SLOTS_LAYOUT_MISMATCH", "slots icon reader requires canonical 1920x1080 screenshot")
     return image.convert("RGBA")
+
+
+@lru_cache(maxsize=3)
+def _slot_template(alias: str) -> np.ndarray:
+    with Image.open(_template(alias)) as template:
+        return np.asarray(template.convert("L"))
+
+
+def _weapon_box_in_slot(image: Image.Image, spec: SlotSpec) -> bool:
+    left = round(spec.quad[0][0])
+    # The selected box lifts slightly above its nominal slot.
+    icon = np.asarray(image.crop((left - 6, 834, left + 106, 956)).convert("L"))
+    label = np.asarray(image.crop((left + 12, 915, left + 99, 984)).convert("L"))
+    return (
+        cv2.matchTemplate(icon, _slot_template("slots.basic_weapon_box"), cv2.TM_CCOEFF_NORMED).max() >= 0.85
+        and cv2.matchTemplate(label, _slot_template(OPEN_TEMPLATE_ALIAS), cv2.TM_CCOEFF_NORMED).max() >= 0.74
+    )
+
+
+def _weapon_box_options(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    options = []
+    for idx, x in enumerate((590, 880, 1170, 1460), 1):
+        names = []
+        for entry in entries:
+            bounds = entry["bounds"]
+            if bounds is None:
+                continue
+            left, top, right, bottom = bounds
+            if 300 <= (top + bottom) / 2 <= 373 and abs((left + right) / 2 - x) <= 104:
+                names.append(entry["text"])
+        options.append({"idx": idx, "name": " ".join(names) or None, "center": {"x": x, "y": 229}})
+    return options
+
+
+def open_cw_weapon_box(session: SessionModel, runtime, *, slot: int) -> dict[str, Any]:
+    if isinstance(slot, bool) or not isinstance(slot, int) or not 0 <= slot < len(HAND_SLOT_POINTS):
+        raise TrailError("SLOTS_POSITION_INVALID", "无效的备战席位置")
+    if stage.build_cw_stage_detector(runtime)() != "preparation":
+        raise TrailError("CW_WEAPON_BOX_NOT_READY", "请先回到备战界面")
+    image = _runtime_slots_image(runtime)
+    spec = next(spec for spec in iter_slot_specs() if spec.area == "hand" and spec.index == slot)
+    if not _weapon_box_in_slot(image, spec):
+        raise TrailError("CW_WEAPON_BOX_NOT_FOUND", "该备战席位置未识别到简易武装箱")
+
+    x, _ = HAND_SLOT_POINTS[slot]
+    runtime.drag_to(x, 907, x, 907, duration=WEAPON_BOX_HOLD_SECONDS)
+    for _ in range(3):
+        sleep(SLOT_PANEL_SETTLE_SECONDS)
+        panel = stage.read_cw_stage_text(runtime)
+        if panel["value"] == WEAPON_BOX_KIND:
+            stage._replace_stage_fields(session, value=WEAPON_BOX_KIND, stale=False)
+            session.last_stage = {"scene": "cw", "value": WEAPON_BOX_KIND}
+            return {
+                "pos": format_cw_agent_slot_reference("hand", slot),
+                "title": WEAPON_BOX_TITLE,
+                "options": _weapon_box_options(panel["entries"]),
+            }
+    _mark_slots_stale(session)
+    error = TrailError("CW_WEAPON_BOX_UNCONFIRMED", "已尝试打开，请核对当前画面")
+    error.known_failure_after_save = True
+    raise error
 
 
 def _save_reused_slots_screenshot(runtime, image: Image.Image, *, request_id: str | None = None) -> str | None:
@@ -1102,16 +1175,21 @@ def build_cw_slot_icon_reader(
     *,
     request_id: str | None = None,
     dismiss_initial_overlay: bool = True,
+    collapse_expanded_hand: bool = True,
 ) -> SlotsSnapshotReader:
     parsed_targets = _parse_slot_targets(targets)
     status_reader = build_cw_status_reader(runtime)
 
     def reader() -> CwSlotsReadResult:
-        _collapse_expanded_hand_card(runtime)
+        status_result = status_reader()
+        if status_result.stage == WEAPON_BOX_KIND:
+            raise TrailError("CW_WEAPON_BOX_OPEN", "简易武装箱待选装备，请先处理弹窗")
+        if collapse_expanded_hand:
+            _collapse_expanded_hand_card(runtime)
         if dismiss_initial_overlay:
             dismiss_cw_slots_overlay(runtime)
-        status_result = status_reader()
         image = _runtime_slots_image(runtime)
+        shop_open = season_two_shop_overlay(image)
         screenshot = _save_reused_slots_screenshot(runtime, image, request_id=request_id)
         front, back, hand = _empty_slots_snapshot()
         targets_by_area = parsed_targets or {
@@ -1122,7 +1200,10 @@ def build_cw_slot_icon_reader(
         for slot_spec in iter_slot_specs():
             if slot_spec.index not in targets_by_area[slot_spec.area]:
                 continue
-            crop = warp_slot_crop(image, slot_spec)
+            if slot_spec.area == "hand" and _weapon_box_in_slot(image, slot_spec):
+                hand[slot_spec.index] = {"kind": WEAPON_BOX_KIND}
+                continue
+            crop = warp_slot_crop(image, slot_spec, shop_open=shop_open)
             value = _slot_value_from_role_recognition_result(recognizer.recognize_crop(crop, slot_spec.area))
             if slot_spec.area == "front":
                 front[slot_spec.index] = value
@@ -1147,12 +1228,14 @@ def build_cw_slots_reader(
     targets: list[str] | None = None,
     *,
     dismiss_initial_overlay: bool = True,
+    collapse_expanded_hand: bool = True,
 ) -> SlotsSnapshotReader:
     status_reader = build_cw_status_reader(runtime)
     roles_reader = build_cw_slot_roles_reader(runtime, targets=targets)
 
     def reader() -> CwSlotsReadResult:
-        _collapse_expanded_hand_card(runtime)
+        if collapse_expanded_hand:
+            _collapse_expanded_hand_card(runtime)
         if dismiss_initial_overlay:
             dismiss_cw_slots_overlay(runtime)
         status_result = status_reader()
@@ -1250,10 +1333,106 @@ def build_cw_hand_seller(runtime) -> HandSeller:
     return seller
 
 
-def build_cw_crystal_collector(runtime) -> CrystalCollector:
-    def collector() -> None:
-        for drag in CRYSTAL_DRAG_PATHS:
-            runtime.drag_to(*drag, duration=CRYSTAL_DRAG_DURATION_SECONDS)
+def _visible_cw_crystals(image: Image.Image) -> list[tuple[int, int]]:
+    left, top, _, _ = CRYSTAL_REGION
+    template = _slot_template("slots.blue_crystal")
+    height, width = template.shape
+    field = np.asarray(image.crop(CRYSTAL_REGION).convert("L"))
+    scores = cv2.matchTemplate(field, template, cv2.TM_CCOEFF_NORMED)
+    centers = []
+    for _ in range(CRYSTAL_MAX_SWIPES):
+        _, score, _, (x, y) = cv2.minMaxLoc(scores)
+        if score < 0.80:
+            break
+        centers.append((left + x + width // 2, top + y + height // 2))
+        scores[max(0, y - 31):y + 32, max(0, x - 31):x + 32] = -1
+    return centers
+
+
+def _visible_cw_gold_crystals(image: Image.Image) -> list[tuple[int, int]]:
+    left, top, right, bottom = (1275, 85, 1660, 492)
+    hsv = cv2.cvtColor(np.asarray(image.crop((left, top, right, bottom)).convert("RGB")), cv2.COLOR_RGB2HSV)
+    mask = cv2.inRange(hsv, np.array((15, 90, 167), dtype=np.uint8),
+                       np.array((43, 255, 255), dtype=np.uint8))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), dtype=np.uint8))
+    count, _, stats, centroids = cv2.connectedComponentsWithStats(mask)
+    centers = []
+    for index in range(1, count):
+        _, _, width, height, area = stats[index]
+        x, y = centroids[index]
+        if (55 <= width <= 105 and 55 <= height <= 105 and .8 <= width / height <= 1.45
+                and area / (width * height) >= .55 and 125 <= top + y <= 445):
+            centers.append((round(left + x), round(top + y)))
+    return centers
+
+
+def _crystal_at(point, points):
+    return any((point[0] - x) ** 2 + (point[1] - y) ** 2 <= 40 ** 2 for x, y in points)
+
+
+def build_cw_crystal_collector(runtime, *, verify_frame=None) -> CrystalCollector:
+    detector = stage.build_cw_stage_detector(runtime)
+
+    def verify(image):
+        if verify_frame is not None:
+            return verify_frame(image)
+        reading = stage.read_cw_stage_text(runtime, image=image)
+        detected = detector(image=image)
+        # Decision text and the level-up overlay take precedence over a visible
+        # preparation control underneath them.
+        if reading["value"] not in (None, "preparation"):
+            return reading["value"]
+        for entry in reading["entries"]:
+            box = entry["bounds"]
+            if ("等级提升" in entry["text"] and box is not None
+                    and 800 <= (box[0] + box[2]) / 2 <= 1120
+                    and 160 <= (box[1] + box[3]) / 2 <= 260):
+                return "unknown"
+        return detected
+
+    def collector() -> dict[str, Any]:
+        swipes = collected = actions = 0
+        image = _runtime_slots_image(runtime)
+        confirmed_stage = verify(image)
+        if confirmed_stage != "preparation":
+            return {"last_crystal_collection": "blocked", "stage": confirmed_stage or "unknown", "swipes": 0}
+        blue = _visible_cw_crystals(image)
+        gold = _visible_cw_gold_crystals(image)
+        while (blue or gold) and actions < CRYSTAL_MAX_SWIPES:
+            is_gold = bool(gold)
+            x, y = gold[0] if is_gold else blue[0]
+            if is_gold:
+                runtime.click_point(x, y)
+            else:
+                runtime.drag_to(max(1306, x - 86), y, min(1608, x + 86), y, duration=CRYSTAL_DRAG_DURATION_SECONDS)
+                swipes += 1
+            actions += 1
+            sleep(CRYSTAL_SETTLE_SECONDS)
+            image = _runtime_slots_image(runtime)
+            confirmed_stage = verify(image)
+            if confirmed_stage != "preparation":
+                return {"last_crystal_collection": "blocked", "stage": confirmed_stage or "unknown",
+                        "swipes": swipes, "collected": collected}
+            next_blue = _visible_cw_crystals(image)
+            next_gold = _visible_cw_gold_crystals(image)
+            blue_gone = sum(not _crystal_at(point, next_blue) for point in blue)
+            target_remaining = _crystal_at((x, y), next_gold if is_gold else next_blue)
+            # A blue template can shift between frames, so count only its
+            # confirmed disappearances backed by a decrease in blue detections.
+            collected += min(blue_gone, max(0, len(blue) - len(next_blue)))
+            if is_gold and not target_remaining:
+                # The clicked gold position is independently confirmed even if
+                # a new gold reward has appeared elsewhere in the same frame.
+                collected += 1
+            if not is_gold and len(next_blue) >= len(blue):
+                target_remaining = True
+            blue, gold = next_blue, next_gold
+            if target_remaining:
+                return {"last_crystal_collection": "unconfirmed", "stage": confirmed_stage,
+                        "swipes": swipes, "collected": collected, "visible_remaining": len(blue) + len(gold)}
+        return {"last_crystal_collection": "unconfirmed" if blue or gold else ("done" if actions else "none_visible"),
+                "stage": confirmed_stage, "swipes": swipes, "collected": collected,
+                "visible_remaining": len(blue) + len(gold)}
 
     return collector
 
@@ -1582,11 +1761,25 @@ def place_one_cw_slot(session: SessionModel, *, source: str, target: str, placer
 
 
 def collect_cw_crystals(session: SessionModel, *, collector: CrystalCollector | None = None) -> SessionModel:
-    if collector is not None:
-        collector()
+    outcome = collector() if collector is not None else None
     cw_state = ensure_cw_state(session)
     metrics = cw_state.setdefault("metrics", {})
-    metrics["last_crystal_collection"] = "done"
+    for field in ("stage", "swipes", "collected", "visible_remaining"):
+        metrics.pop(field, None)
+    if isinstance(outcome, dict):
+        metrics.update(outcome)
+        if outcome.get("swipes"):
+            _mark_slots_stale(session)
+        if outcome.get("last_crystal_collection") == "blocked":
+            value = outcome.get("stage")
+            if value == "unknown":
+                stage.mark_cw_stage_stale(session)
+                session.last_stage = None
+            else:
+                stage._replace_stage_fields(session, value=value, stale=False)
+                session.last_stage = {"scene": "cw", "value": value}
+    else:
+        metrics["last_crystal_collection"] = "done"
     return session
 
 
@@ -1610,7 +1803,7 @@ def _slot_star(value: Any) -> int | None:
         parsed = star
     if isinstance(star, str) and star.strip().isdigit():
         parsed = int(star.strip())
-    if parsed in {1, 2, 3}:
+    if parsed in {1, 2, 3, 4}:
         return parsed
     return None
 

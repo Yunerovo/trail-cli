@@ -10,6 +10,8 @@ from typing import Any
 LOOKUP_WHITESPACE_PATTERN = re.compile(r"\s+")
 LOW_CONFIDENCE_THRESHOLD = 0.72
 AMBIGUOUS_DELTA_THRESHOLD = 0.12
+EXACT_COUNT_TRAIT = "少女乐队"
+THREE_STAR_TRAIT = "千星商会"
 
 
 @dataclass(frozen=True)
@@ -198,6 +200,7 @@ def build_cw_catalog(guide_config: Mapping[str, Any] | None) -> CwCatalog:
             "id": str(role_id) if role_id is not None else None,
             "name": name,
             "normalized_name": normalize_cw_lookup_text(name),
+            "cost": _coerce_positive_int(raw.get("cost")),
             "trait_ids": trait_ids,
             "traits": traits_for_role,
         }
@@ -268,6 +271,7 @@ def resolve_cw_role_name(
     catalog: CwCatalog,
     *,
     position: Mapping[str, Any] | None = None,
+    cost: object = None,
 ) -> CwRoleMatch | None:
     if not isinstance(raw_name, str):
         return None
@@ -281,6 +285,21 @@ def resolve_cw_role_name(
     best_score, _, best_role = ranked[0]
     normalized = normalize_cw_lookup_text(text)
     if normalized == best_role.get("normalized_name"):
+        exact = [role for _, _, role in ranked if role.get("normalized_name") == normalized]
+        matching_cost = [role for role in exact if role.get("cost") == _coerce_positive_int(cost)]
+        if len(exact) > 1 and len(matching_cost) != 1:
+            return CwRoleMatch(
+                name=str(best_role["name"]), role_id=None,
+                traits=[trait for trait in best_role["traits"] if all(trait in role["traits"] for role in exact)],
+                match_kind="ambiguous", match_score=1.0, raw_name=text,
+                warning=_role_warning(
+                    code="CW_ROLE_MATCH_AMBIGUOUS", position=position, query=text,
+                    resolved=str(best_role["name"]), score=1.0,
+                    candidates=[f"{role['name']}({role['cost']}费)" for role in exact],
+                ),
+            )
+        if len(exact) > 1:
+            best_role = matching_cost[0]
         return CwRoleMatch(
             name=str(best_role["name"]),
             role_id=best_role.get("id"),
@@ -324,6 +343,7 @@ def resolve_cw_role_name(
 
 def summarize_cw_field_traits(*, front: list[Any], back: list[Any], catalog: CwCatalog) -> list[dict[str, Any]]:
     owned_counts: dict[str, int] = {}
+    three_star_count = 0
     for value in [*front, *back]:
         if not isinstance(value, Mapping):
             continue
@@ -332,28 +352,35 @@ def summarize_cw_field_traits(*, front: list[Any], back: list[Any], catalog: CwC
             if not trait_name:
                 continue
             owned_counts[trait_name] = owned_counts.get(trait_name, 0) + 1
+            if trait_name == THREE_STAR_TRAIT and _coerce_positive_int(value.get("star")) == 3:
+                three_star_count += 1
 
     summary: list[dict[str, Any]] = []
     for trait, owned_roles in owned_counts.items():
         tiers = catalog.trait_tiers_by_name.get(trait)
         if not tiers:
             continue
-        active_tier = 0
-        for tier in tiers:
-            if owned_roles >= tier:
-                active_tier = tier
+        contribution = three_star_count if trait == THREE_STAR_TRAIT else owned_roles
+        if trait == EXACT_COUNT_TRAIT:
+            active_tiers = [tier for tier in tiers if owned_roles == tier]
+        else:
+            active_tiers = [tier for tier in tiers if contribution >= tier]
+        active_tier = max(active_tiers, default=0)
         total_tiers = len(tiers)
         max_tier = max(tiers)
         ratio = 0.0 if max_tier <= 0 else round(active_tier / max_tier, 2)
-        summary.append(
-            {
-                "trait": trait,
-                "tiers": list(tiers),
-                "owned_roles": owned_roles,
-                "active_tier": active_tier,
-                "total_tiers": total_tiers,
-                "ratio": ratio,
-            }
-        )
+        entry = {
+            "trait": trait,
+            "tiers": list(tiers),
+            "owned_roles": owned_roles,
+            "active_tier": active_tier,
+            "total_tiers": total_tiers,
+            "ratio": ratio,
+        }
+        if trait == EXACT_COUNT_TRAIT:
+            entry["active_tiers"] = active_tiers
+        if trait == THREE_STAR_TRAIT:
+            entry["contributing_roles"] = contribution
+        summary.append(entry)
     summary.sort(key=lambda item: (-float(item["ratio"]), -int(item["owned_roles"]), str(item["trait"])))
     return summary[:10]

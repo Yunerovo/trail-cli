@@ -2493,6 +2493,42 @@ def test_collapse_expanded_hand_card_rejects_stuck_open_overlay(monkeypatch):
     assert runtime.clicks == [(25, 40), slots_module.HAND_EXPAND_DISMISS_POINT] * slots_module.HAND_EXPAND_COLLAPSE_MAX_ATTEMPTS
 
 
+def test_slots_keep_weapon_box_as_occupied_without_counting_it_as_role(tmp_path):
+    slots = load_cw_slots_module()
+    session = build_fake_cw_session(tmp_path)
+    result = slots.read_cw_slots(session, reader=lambda: slots.CwSlotsReadResult(
+        front=["希儿"], back=[], hand=[{"kind": "weapon_box"}], stage_status={}, stage="preparation",
+    ))
+
+    assert result.response_snapshot["hand"][0] == {"kind": "weapon_box"}
+    assert not slots._slot_value_name(result.response_snapshot["hand"][0])
+    assert result.response_snapshot["stage_status"]["role_count"]["hand"] == 0
+
+
+def test_open_cw_weapon_box_holds_once_while_waiting_for_dialog(tmp_path, monkeypatch):
+    slots = load_cw_slots_module()
+    session = build_fake_cw_session(tmp_path)
+    drags = []
+    runtime = SimpleNamespace(drag_to=lambda *points, duration: drags.append((points, duration)))
+    panels = iter([
+        {"value": "preparation"},
+        {"value": "weapon_box", "entries": [{"text": "光能电池", "bounds": (540, 320, 640, 350)}]},
+    ])
+    monkeypatch.setattr(slots.stage, "build_cw_stage_detector", lambda _: lambda: "preparation")
+    monkeypatch.setattr(slots.stage, "read_cw_stage_text", lambda _: next(panels))
+    monkeypatch.setattr(slots, "_runtime_slots_image", lambda _: None)
+    monkeypatch.setattr(slots, "_weapon_box_in_slot", lambda _, spec: spec.index == 3)
+    monkeypatch.setattr(slots, "sleep", lambda _: None)
+
+    result = slots.open_cw_weapon_box(session, runtime, slot=3)
+
+    x, _ = slots.HAND_SLOT_POINTS[3]
+    assert drags == [((x, 907, x, 907), 0.35)]
+    assert result["pos"] == "hand:4"
+    assert result["options"][0] == {"idx": 1, "name": "光能电池", "center": {"x": 590, "y": 229}}
+    assert session.last_stage == {"scene": "cw", "value": "weapon_box"}
+
+
 def test_collapse_expanded_hand_card_waits_for_dismiss_settle(monkeypatch):
     slots_module = load_cw_slots_module()
     collapse = getattr(slots_module, "_collapse_expanded_hand_card", None)
@@ -2739,27 +2775,48 @@ def test_collect_cw_crystals_records_metric(tmp_path):
     assert refreshed.scene_state["cw"]["metrics"]["last_crystal_collection"] == "done"
 
 
-def test_build_cw_hand_seller_and_crystal_collector_use_runtime_drags():
-    slots_module = load_cw_slots_module()
-    build_cw_hand_seller = getattr(slots_module, "build_cw_hand_seller", None)
-    build_cw_crystal_collector = getattr(slots_module, "build_cw_crystal_collector", None)
-    assert build_cw_hand_seller is not None
-    assert build_cw_crystal_collector is not None
+def test_build_cw_hand_seller_uses_runtime_drag():
+    slots = load_cw_slots_module()
+    drags = []
+    runtime = SimpleNamespace(drag_to=lambda *points: drags.append(points))
 
-    class RuntimeSpy:
-        def __init__(self):
-            self.drags: list[tuple[int, int, int, int, float | None]] = []
+    slots.build_cw_hand_seller(runtime)(slot=2)
 
-        def drag_to(self, from_x: int, from_y: int, to_x: int, to_y: int, *, duration: float | None = None):
-            self.drags.append((from_x, from_y, to_x, to_y, duration))
+    assert drags == [(*slots.HAND_SLOT_POINTS[2], *slots.SELL_SLOT_POINT)]
 
-    runtime = RuntimeSpy()
 
-    build_cw_hand_seller(runtime)(slot=2)
-    build_cw_crystal_collector(runtime)()
+@pytest.mark.parametrize(
+    ("stages", "frames", "status", "swipes", "collected"),
+    [
+        (["voyage_companion"], [], "blocked", 0, None),
+        (["preparation", "voyage_companion"], [[(1490, 340)], []], "blocked", 1, 0),
+        (["preparation", "preparation"], [[(1490, 340)], []], "done", 1, 1),
+        (["preparation", "preparation"], [[(1490, 340)], [(1490, 340)]], "unconfirmed", 1, 0),
+        (["preparation"], [[]], "none_visible", 0, 0),
+    ],
+)
+def test_crystal_collector_only_sweeps_visible_rewards_in_preparation(
+    monkeypatch, stages, frames, status, swipes, collected,
+):
+    slots = load_cw_slots_module()
+    drags = []
+    runtime = SimpleNamespace(drag_to=lambda *points, duration: drags.append((points, duration)))
+    readings = iter(stages)
+    images = iter(frames or [[]])
+    monkeypatch.setattr(slots.stage, "build_cw_stage_detector", lambda _: lambda **kwargs: next(readings))
+    monkeypatch.setattr(slots.stage, "read_cw_stage_text", lambda *args, **kwargs: {"value": None, "entries": []})
+    monkeypatch.setattr(slots, "_visible_cw_gold_crystals", lambda frame: [])
+    monkeypatch.setattr(slots, "_runtime_slots_image", lambda _: next(images))
+    monkeypatch.setattr(slots, "_visible_cw_crystals", lambda frame: frame)
+    monkeypatch.setattr(slots, "sleep", lambda _: None)
 
-    assert runtime.drags[0] == (*slots_module.HAND_SLOT_POINTS[2], *slots_module.SELL_SLOT_POINT, None)
-    assert runtime.drags[1:] == [(*drag, 0.2) for drag in slots_module.CRYSTAL_DRAG_PATHS]
+    result = slots.build_cw_crystal_collector(runtime)()
+
+    assert result["last_crystal_collection"] == status
+    assert result["stage"] == stages[-1]
+    assert result["swipes"] == swipes
+    assert result.get("collected") == collected
+    assert drags == [((1404, 340, 1576, 340), 0.2)] * swipes
 
 
 def test_sell_plan_returns_reference_items_ordered_by_priority(tmp_path):
@@ -3884,3 +3941,68 @@ def test_cw_slots_and_hand_mutations_flow_through_command_service_journal(
     if method == "cw.hand.sell_plan":
         assert envelope["data"]["items"] == _fake_reference_sell_plan()["items"]
         assert persisted["sell_plan"]["items"] == _fake_reference_sell_plan()["items"]
+
+
+def test_gold_crystal_detection_and_confirmed_collection(monkeypatch):
+    import cv2
+    import numpy as np
+    from PIL import Image
+    slots = load_cw_slots_module()
+    def frame(points):
+        array = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        for x, y in points:
+            cv2.circle(array, (x, y), 34, (255, 210, 20), -1)
+        return Image.fromarray(array)
+    first, second, empty = frame([(1390, 132)]), frame([(1500, 300)]), frame([])
+    assert slots._visible_cw_gold_crystals(first) == [(1390, 132)]
+    frames = iter([first, second, empty])
+    clicks = []
+    runtime = SimpleNamespace(click_point=lambda x, y: clicks.append((x, y)))
+    monkeypatch.setattr(slots, "_runtime_slots_image", lambda _: next(frames))
+    monkeypatch.setattr(slots, "_visible_cw_crystals", lambda _: [])
+    monkeypatch.setattr(slots.stage, "build_cw_stage_detector", lambda _: lambda **kw: "preparation")
+    monkeypatch.setattr(slots.stage, "read_cw_stage_text", lambda *a, **kw: {"value": None, "entries": []})
+    monkeypatch.setattr(slots, "sleep", lambda _: None)
+    result = slots.build_cw_crystal_collector(runtime)()
+    assert clicks == [(1390, 132), (1500, 300)]
+    assert result == {"last_crystal_collection": "done", "stage": "preparation", "swipes": 0,
+                      "collected": 2, "visible_remaining": 0}
+
+
+def test_gold_crystal_unchanged_or_blocked_never_retries(monkeypatch):
+    slots = load_cw_slots_module()
+    clicks = []
+    runtime = SimpleNamespace(click_point=lambda x, y: clicks.append((x, y)))
+    monkeypatch.setattr(slots, "_runtime_slots_image", lambda _: object())
+    monkeypatch.setattr(slots, "_visible_cw_crystals", lambda _: [])
+    monkeypatch.setattr(slots, "_visible_cw_gold_crystals", lambda _: [(1390, 132)])
+    monkeypatch.setattr(slots.stage, "build_cw_stage_detector", lambda _: lambda **kw: "preparation")
+    monkeypatch.setattr(slots, "sleep", lambda _: None)
+    monkeypatch.setattr(slots.stage, "read_cw_stage_text", lambda *a, **kw: {"value": None, "entries": []})
+    result = slots.build_cw_crystal_collector(runtime)()
+    assert result["last_crystal_collection"] == "unconfirmed"
+    assert result["collected"] == 0 and result["visible_remaining"] == 1
+    assert clicks == [(1390, 132)]
+    clicks.clear()
+    for reading in ({"value": "voyage_companion", "entries": []},
+                    {"value": "preparation", "entries": [{"text": "等级提升", "bounds": (900, 180, 1000, 220)}]}):
+        monkeypatch.setattr(slots.stage, "read_cw_stage_text", lambda *a, **kw: reading)
+        assert slots.build_cw_crystal_collector(runtime)()["last_crystal_collection"] == "blocked"
+        assert clicks == []
+
+
+def test_crystal_blue_detection_shift_without_count_drop_is_unconfirmed(monkeypatch):
+    slots = load_cw_slots_module()
+    frames = iter([[(1400, 340)], [(1460, 340)]])
+    drags = []
+    runtime = SimpleNamespace(drag_to=lambda *args, **kwargs: drags.append(args))
+    monkeypatch.setattr(slots, "_runtime_slots_image", lambda _: next(frames))
+    monkeypatch.setattr(slots, "_visible_cw_crystals", lambda frame: frame)
+    monkeypatch.setattr(slots, "_visible_cw_gold_crystals", lambda _: [])
+    monkeypatch.setattr(slots.stage, "build_cw_stage_detector", lambda _: lambda **kw: "preparation")
+    monkeypatch.setattr(slots.stage, "read_cw_stage_text", lambda *a, **kw: {"value": None, "entries": []})
+    monkeypatch.setattr(slots, "sleep", lambda _: None)
+    result = slots.build_cw_crystal_collector(runtime)()
+    assert result["last_crystal_collection"] == "unconfirmed"
+    assert result["collected"] == 0 and result["visible_remaining"] == 1
+    assert len(drags) == 1

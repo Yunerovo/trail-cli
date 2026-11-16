@@ -5,6 +5,7 @@ import json
 from copy import deepcopy
 from functools import lru_cache
 from io import BytesIO
+from types import SimpleNamespace
 
 import pytest
 from PIL import Image, ImageDraw
@@ -12,6 +13,34 @@ from PIL import Image, ImageDraw
 
 def load_equipment_resources_module():
     return importlib.import_module("trail.scenes.cw.equipment_resources")
+
+
+def test_chimera_projector_uses_exact_name_with_both_projectors_present(tmp_path, monkeypatch):
+    from trail.runtime.resources import resolve_scene_asset
+    from trail.scenes.cw import equipment
+    from trail.session.store import SessionStore
+
+    image = Image.new("RGB", (1920, 1080))
+    with Image.open(resolve_scene_asset("cw", "equipment.chimera_garden")) as garden:
+        image.paste(garden, (321, 272))
+    stages = iter(["preparation", "preparation", "chimera_pick"])
+    monkeypatch.setattr(equipment, "build_cw_stage_detector", lambda _: lambda: next(stages))
+    monkeypatch.setattr(equipment, "sleep", lambda _: None)
+    monkeypatch.setattr(equipment, "_read_season_two_consumables", lambda *args, **kwargs: [
+        {"name": "完美投影仪", "center": {"x": 1781, "y": 165}},
+        {"name": "奇美拉投影仪", "center": {"x": 1627, "y": 165}},
+    ])
+    drags = []
+    runtime = SimpleNamespace(
+        screenshot=lambda: image,
+        drag_to=lambda *points, duration: drags.append(points),
+    )
+    session = SessionStore(tmp_path).create(window_binding={"title": "崩坏：星穹铁道"})
+
+    result = equipment.open_cw_chimera_projector(session, runtime)
+
+    assert result["stage"] == "chimera_pick"
+    assert drags == [(1627, 165, *equipment.CHIMERA_GARDEN_TARGET)]
 
 
 def test_build_equipment_catalog_includes_advanced_and_basic_without_kind_collision():
@@ -646,6 +675,21 @@ def test_default_equipment_grid_profile_locks_confirmed_coordinates():
     assert cells[1].box == {"left": 1820, "top": 318, "width": 70, "height": 70}
     assert cells[6].box == {"left": 1740, "top": 240, "width": 70, "height": 70}
     assert len(cells) == 18
+
+
+def test_season_two_equipment_frame_rejects_the_shop_button_and_bare_board():
+    from PIL import ImageDraw
+
+    grid = load_equipment_grid_module()
+    cell = Image.new("RGB", (74, 74), (41, 22, 30))
+    assert not grid.crop_has_season_two_equipment_frame(cell)
+    ImageDraw.Draw(cell).rectangle((2, 2, 71, 71), outline=(165, 160, 160), width=2)
+    assert grid.crop_has_season_two_equipment_frame(cell)
+    ImageDraw.Draw(cell).rectangle((7, 7, 66, 66), fill=(253, 252, 255))
+    assert not grid.crop_has_season_two_equipment_frame(cell)
+    gold_card = Image.new("RGB", (74, 74), (150, 221, 231))
+    ImageDraw.Draw(gold_card).rectangle((2, 2, 71, 71), outline=(213, 172, 123), width=2)
+    assert grid.crop_has_season_two_equipment_frame(gold_card)
 
 
 def test_crop_equipment_cells_returns_70x70_images_and_float_candidates():
@@ -1814,6 +1858,23 @@ def _compose_raw_config(*, basics=None, advanced_id="saw", advanced_name="高周
         "rpg_game_big_version": "3.2",
         "equipment_list": [{"id": advanced_id, "name": advanced_name, "icon": "https://act-webstatic.mihoyo.com/saw.png", "compose_list": [{"childrens": list(basics)}]}],
     }
+
+
+def test_compose_can_use_second_recipe_for_same_equipment():
+    from trail.scenes.cw.equipment import select_cw_equipment_compose_materials
+
+    red = {"id": "red", "name": "红钻", "icon": "https://act-webstatic.mihoyo.com/red.png"}
+    blue = {"id": "blue", "name": "蓝钻", "icon": "https://act-webstatic.mihoyo.com/blue.png"}
+    raw = _compose_raw_config(basics=[red, red], advanced_name="财富宝钻")
+    raw["equipment_list"][0]["compose_list"].extend([{"childrens": [red, blue]}, {"childrens": [blue, blue]}])
+    inventory = {"items": [
+        {"idx": 1, "cache_key": "basic-red", "equipment_id": "red", "name": "红钻"},
+        {"idx": 2, "cache_key": "basic-blue", "equipment_id": "blue", "name": "蓝钻"},
+    ]}
+
+    result = select_cw_equipment_compose_materials(inventory, name="财富宝钻", raw_config=raw)
+
+    assert [item["idx"] for item in result["materials"]] == [1, 2]
 
 
 def _install_compose_equipment_reads(monkeypatch, equipment, session, snapshots):

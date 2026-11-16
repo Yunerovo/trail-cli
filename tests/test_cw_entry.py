@@ -428,7 +428,7 @@ def test_enter_new_game_waits_before_first_difficulty_ocr(monkeypatch: pytest.Mo
     runtime = Runtime()
 
     monkeypatch.setattr(entry_module, "_transition_sleep", lambda seconds: sleep_calls.append(seconds))
-    monkeypatch.setattr(entry_module, "_handle_boss_info_flow", lambda runtime: None)
+    monkeypatch.setattr(entry_module, "_handle_boss_info_flow", lambda runtime, *, session=None, check_cancelled=None: None)
     monkeypatch.setattr(entry_module, "_consume_click_blank_prompt", lambda runtime: None)
     monkeypatch.setattr(entry_module, "_handle_invest_environment_flow", lambda runtime: None)
     monkeypatch.setattr(
@@ -504,7 +504,7 @@ def test_enter_from_start_page_dismisses_home_update_prompt_before_start_click(m
     monkeypatch.setattr(
         entry_module,
         "_enter_new_game",
-        lambda actual_runtime, *, difficulty: events.append(("new_game", difficulty)),
+        lambda actual_runtime, *, difficulty, session=None, check_cancelled=None: events.append(("new_game", difficulty)),
     )
 
     entry_module._enter_from_start_page(
@@ -2365,3 +2365,40 @@ def test_cw_enter_marks_applied_but_not_persisted_when_ui_side_effect_fails_late
     assert status["final_state"] == "applied_but_not_persisted"
     assert status["tainted"] is True
     assert persisted.scene_state.get("cw", {}).get("entry") is None
+
+
+def test_start_boss_preview_passes_cancellation_to_opening(monkeypatch):
+    import trail.scenes.cw.entry as entry_module
+
+    class Cancelled(Exception):
+        pass
+
+    def check_cancelled():
+        raise Cancelled()
+
+    def collect(runtime, *, check_cancelled):
+        check_cancelled()
+
+    monkeypatch.setattr(entry_module, "collect_cw_opening", collect)
+    with pytest.raises(Cancelled):
+        entry_module._run_start_chain(
+            object(), current={"page": "stage.boss_preview"}, mode="new",
+            difficulty="current", battle_mode="standard", session=object(),
+            existing_entry={"mode": "new", "difficulty": "current", "battle_mode": "standard"},
+            check_cancelled=check_cancelled,
+        )
+
+
+def test_boss_flow_checks_cancellation_before_next(monkeypatch):
+    import trail.scenes.cw.entry as entry_module
+
+    class Cancelled(Exception):
+        pass
+    actions = []
+    runtime = SimpleNamespace(click_point=lambda x, y: actions.append((x, y)))
+    monkeypatch.setattr(entry_module, "_wait", lambda runtime, alias: {"left": 0, "top": 0, "width": 10, "height": 10})
+    def cancel():
+        raise Cancelled()
+    with pytest.raises(Cancelled):
+        entry_module._handle_boss_info_flow(runtime, check_cancelled=cancel)
+    assert actions == []

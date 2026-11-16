@@ -1,0 +1,1046 @@
+{
+  "role_manifest_schema_version": 1,
+  "resource_version": "4.7",
+  "empty_template_version": "cw-slots-empty-v1",
+  "empty_templates": {
+    "field": {
+      "local_path": "roles/empty/field-v1.png",
+      "sha256": "ffb41efcd061bb486b9f1b34016ef23531e65d4bca48e05675f494bc90167abc",
+      "size": 5631
+    },
+    "hand": {
+      "local_path": "roles/empty/hand-v1.png",
+      "sha256": "e648e966d73b0362ee1016077b6ffcf53dba551fee74fead5f08d66209a87e77",
+      "size": 2076
+    }
+  },
+  "items": [
+    {
+      "role_id": "150302",
+      "name": "真珠",
+      "normalized_name": "真珠",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100302",
+        "100602",
+        "201102"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/e4f4f43ce84bb003020fc10617ac0ad7.png",
+      "local_path": "roles/icons/150302.png",
+      "sha256": "c8193dbf5ad7bdad8c6d2f0a9ce43c4a3aaee70df69e374033d4c6a3302edec8",
+      "size": 71720
+    },
+    {
+      "role_id": "150102",
+      "name": "火花",
+      "normalized_name": "火花",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "101102",
+        "200702"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ab0b766e268e20f04eb3de01ddb3a7fe.png",
+      "local_path": "roles/icons/150102.png",
+      "sha256": "ab76ce364ba7ba715ef24433f72a8a992e3e2d581d4a8aba180c4862a8c2fd13",
+      "size": 77876
+    },
+    {
+      "role_id": "141302",
+      "name": "长夜月",
+      "normalized_name": "长夜月",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "101002",
+        "200602"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ed43753eeb5dab4c198e48e693623d4b.png",
+      "local_path": "roles/icons/141302.png",
+      "sha256": "7b31978627c83cddeb0710264eb63cd6d5a555eea97e2f02ff9d06a284fe2bdc",
+      "size": 76296
+    },
+    {
+      "role_id": "141202",
+      "name": "刻律德菈",
+      "normalized_name": "刻律德菈",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100902",
+        "200402"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/003ee3bf807e38c3ca56ce456ed3f84f.png",
+      "local_path": "roles/icons/141202.png",
+      "sha256": "2db9d5ae3e87cad6c1ce99b932609e0cfcebf5023b700449bc057a919de3badc",
+      "size": 76528
+    },
+    {
+      "role_id": "140502",
+      "name": "那刻夏",
+      "normalized_name": "那刻夏",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100202",
+        "200402"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/fcaa1665d421ee95eea0497f28c2c65b.png",
+      "local_path": "roles/icons/140502.png",
+      "sha256": "354751117039f9858f798e8ea528bd8e1ee34c742a79e74b44096d31aa82d3f5",
+      "size": 70908
+    },
+    {
+      "role_id": "131502",
+      "name": "波提欧",
+      "normalized_name": "波提欧",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100402",
+        "200502"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/90d69b408d1ea86ad111ee85eb10d3ce.png",
+      "local_path": "roles/icons/131502.png",
+      "sha256": "06d5735b8bede01bce2978253abe4daa96cbd773f23f6a41129157df04af5be0",
+      "size": 63851
+    },
+    {
+      "role_id": "130702",
+      "name": "黑天鹅",
+      "normalized_name": "黑天鹅",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "101002",
+        "200202"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/85f9d32a1fa7ecd21c4e995f094bac0d.png",
+      "local_path": "roles/icons/130702.png",
+      "sha256": "c9832c4e91782f374914fb99a0d6bf442f1847514eab2edf8c8534fe3096acd5",
+      "size": 68139
+    },
+    {
+      "role_id": "122502",
+      "name": "忘归人",
+      "normalized_name": "忘归人",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "200502"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/8f3cc41cc957b98d858a3a706205ac5e.png",
+      "local_path": "roles/icons/122502.png",
+      "sha256": "3bbbe59c192697fff4def579dc6b6ca633245a81b9344efec92ef5ae4844493f",
+      "size": 72624
+    },
+    {
+      "role_id": "122402",
+      "name": "三月七",
+      "normalized_name": "三月七",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100502",
+        "200102"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2b35293bfad58121d893dd71a2a6c949.png",
+      "local_path": "roles/icons/122402.png",
+      "sha256": "ac4701a98eeb7b93fac284f9567b08294232fd2d74e31d7b5e023157ad7207e1",
+      "size": 69876
+    },
+    {
+      "role_id": "122202",
+      "name": "灵砂",
+      "normalized_name": "灵砂",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100102",
+        "200302",
+        "201002"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/646d644dc226152a87aee24eb3b7fc17.png",
+      "local_path": "roles/icons/122202.png",
+      "sha256": "78dc42a100c9370d8224840c112f7b14eb1af9e60532cf149f84c9bbfada3462",
+      "size": 59242
+    },
+    {
+      "role_id": "121002",
+      "name": "桂乃芬",
+      "normalized_name": "桂乃芬",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100102",
+        "200202"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2666e6b66694bd6b5e066b3bb5894ded.png",
+      "local_path": "roles/icons/121002.png",
+      "sha256": "6655db7799c0fba203acd7ee93c357d391414e66ea2c66591d2272bdc51e4c16",
+      "size": 71839
+    },
+    {
+      "role_id": "120402",
+      "name": "景元",
+      "normalized_name": "景元",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100702",
+        "200602"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/48100fa519fabfee8fab7b836e27f128.png",
+      "local_path": "roles/icons/120402.png",
+      "sha256": "3feaca5719ec18282064aa2afce4fdaaff345783f00bff85c8621146931996e1",
+      "size": 77244
+    },
+    {
+      "role_id": "111202",
+      "name": "托帕&账账",
+      "normalized_name": "托帕&账账",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100602",
+        "200102"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2b893fb8f44cb073701ce9cf0de43e42.png",
+      "local_path": "roles/icons/111202.png",
+      "sha256": "3fa131b8d29de476e8c767867d2a71486fef9a14bb6d3755c29480d5a1b1f20e",
+      "size": 64020
+    },
+    {
+      "role_id": "100402",
+      "name": "瓦尔特",
+      "normalized_name": "瓦尔特",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100502",
+        "200302"
+      ],
+      "rarity": "1",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f6c6166bee0dbb0c1ceb08e8e80c4f79.png",
+      "local_path": "roles/icons/100402.png",
+      "sha256": "98eca7672f1df7c9cc3886f7a395e519d672eb638f41e812e17e9bf5f2529083",
+      "size": 60043
+    },
+    {
+      "role_id": "151202",
+      "name": "知更鸟•晴歌",
+      "normalized_name": "知更鸟•晴歌",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100602",
+        "200602",
+        "200902"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2b8497b39c8e5f0e5a8ee56b30edfd81.png",
+      "local_path": "roles/icons/151202.png",
+      "sha256": "ad4bb3336b7a56eb8347001059f71ee523562f71304663db48dbc436f33525d3",
+      "size": 66598
+    },
+    {
+      "role_id": "150502",
+      "name": "绯英",
+      "normalized_name": "绯英",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "200902"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/04a5e21dff722e88e8371150a80a7f79.png",
+      "local_path": "roles/icons/150502.png",
+      "sha256": "aedffe8f09260136b69c31e585dfcd4ffa9e692698d802d65f03f1ec030e20ac",
+      "size": 64583
+    },
+    {
+      "role_id": "141002",
+      "name": "海瑟音",
+      "normalized_name": "海瑟音",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "200202"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9ab391bfb1b971f5fc21ec279f69f776.png",
+      "local_path": "roles/icons/141002.png",
+      "sha256": "d6ed97207635a472a0736dfe923e225f24888fc62df0c1a6b01f123c659ffb54",
+      "size": 74112
+    },
+    {
+      "role_id": "140402",
+      "name": "万敌",
+      "normalized_name": "万敌",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "101202",
+        "200802"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f892645dfde7c9538a09640aecf1da85.png",
+      "local_path": "roles/icons/140402.png",
+      "sha256": "8a07c085e7f3791de2dcf86b438f068ab8a432c7ccea53a83f5276f12d94e722",
+      "size": 64652
+    },
+    {
+      "role_id": "140102",
+      "name": "大黑塔",
+      "normalized_name": "大黑塔",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100402",
+        "200302"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/17c78c4edd1f00f496a52fb6ff02fa7c.png",
+      "local_path": "roles/icons/140102.png",
+      "sha256": "83e462a21e9d5ddeba232d13570da222d52242b3e9d2d9877e765319b7b67e31",
+      "size": 74693
+    },
+    {
+      "role_id": "131302",
+      "name": "星期日",
+      "normalized_name": "星期日",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "100502",
+        "200402"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/24975cc631bf1f170fe6382d47324cc7.png",
+      "local_path": "roles/icons/131302.png",
+      "sha256": "00b7ef1e8075292083a9fb2bd308b18964b6cbf92dd19e1ecf18dc96578a60a0",
+      "size": 80245
+    },
+    {
+      "role_id": "131002",
+      "name": "流萤",
+      "normalized_name": "流萤",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100802",
+        "200502"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ff7bf3d035e53150a97407008384965a.png",
+      "local_path": "roles/icons/131002.png",
+      "sha256": "a4bef25ea349ecd2ee76221ef25fb7bfc3bf0d84703804e36d5a7459b5113e96",
+      "size": 78334
+    },
+    {
+      "role_id": "130902",
+      "name": "知更鸟",
+      "normalized_name": "知更鸟",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101102",
+        "200102"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/0db77e62103431744bbf838d1f16fde9.png",
+      "local_path": "roles/icons/130902.png",
+      "sha256": "3877b6dd0b495fd867072e9d9f64cafc11ae6e2eb67caa84f3242facfbf8ab5a",
+      "size": 65756
+    },
+    {
+      "role_id": "130602",
+      "name": "花火",
+      "normalized_name": "花火",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100902",
+        "101002",
+        "200702"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2ea8895c72a13a9c9869316f39adb82a.png",
+      "local_path": "roles/icons/130602.png",
+      "sha256": "5c1ac25183d5caddabeb422eae6454b5f2f9041273b48e613ed5cfcc5b561098",
+      "size": 73881
+    },
+    {
+      "role_id": "122102",
+      "name": "云璃",
+      "normalized_name": "云璃",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100102",
+        "200802"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/396e1f5f6485f7cb42b515114f214f28.png",
+      "local_path": "roles/icons/122102.png",
+      "sha256": "6564e966b9d5660b36598425f62aa5e3f20f34a00dc801b810306e46409648bd",
+      "size": 72772
+    },
+    {
+      "role_id": "121102",
+      "name": "白露",
+      "normalized_name": "白露",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100702",
+        "200402",
+        "201002"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/a6babab52b38b7a46a89c4e29fe2b800.png",
+      "local_path": "roles/icons/121102.png",
+      "sha256": "0f636337b2a696ae13f83218b5f1d8020e182774936749bbdc77d86aa4281319",
+      "size": 71618
+    },
+    {
+      "role_id": "110502",
+      "name": "娜塔莎",
+      "normalized_name": "娜塔莎",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100402",
+        "200202",
+        "201002"
+      ],
+      "rarity": "2",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f5ee8fdeb5ff12212ea55296cb185fbf.png",
+      "local_path": "roles/icons/110502.png",
+      "sha256": "3b342d5d592ff839bb9c3419c3da93399946ef0e8dcb871f506448f3e1618b51",
+      "size": 68035
+    },
+    {
+      "role_id": "800902",
+      "name": "开拓者",
+      "normalized_name": "开拓者",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100502",
+        "100802",
+        "200902"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/b6775f1715693236bd6cfd5e8eacc28e.png",
+      "local_path": "roles/icons/800902.png",
+      "sha256": "f41240f5c8a4d36ced6713a72fa9c59e3c0cbc0ac9ed81e2586650c98727dee5",
+      "size": 51654
+    },
+    {
+      "role_id": "150602",
+      "name": "银狼LV.999",
+      "normalized_name": "银狼lv.999",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100302",
+        "100802",
+        "200702"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/7382a178049ca251557d5f7472f74022.png",
+      "local_path": "roles/icons/150602.png",
+      "sha256": "a9819037e7fda8dd057d4ab110caf592769a209265678cadf648da2f5b6db7ad",
+      "size": 66292
+    },
+    {
+      "role_id": "150202",
+      "name": "爻光",
+      "normalized_name": "爻光",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100602",
+        "200702"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ce359035d4cdd393cf993f04b4941a5d.png",
+      "local_path": "roles/icons/150202.png",
+      "sha256": "1dcc5e240b7f3a0619cb94310df4bbc080f531f925df3ff2078fb1635ee208c5",
+      "size": 73534
+    },
+    {
+      "role_id": "140702",
+      "name": "遐蝶",
+      "normalized_name": "遐蝶",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "101202",
+        "200602"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/b7dea9c2b8349691fa59112ce2d8afed.png",
+      "local_path": "roles/icons/140702.png",
+      "sha256": "bf0998065913d5ee5513469251a6be42524fec2c7efbe9efcb5fa5eb1bb0e385",
+      "size": 68054
+    },
+    {
+      "role_id": "140602",
+      "name": "赛飞儿",
+      "normalized_name": "赛飞儿",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100202",
+        "200302"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/cae9e8f5f45473fd4a5bd9bba4c2e404.png",
+      "local_path": "roles/icons/140602.png",
+      "sha256": "4a57f5002395a7812ff3f448d9bae2d44353b364bb7d70c92ea2fdd2bde40b0a",
+      "size": 76036
+    },
+    {
+      "role_id": "132102",
+      "name": "大丽花",
+      "normalized_name": "大丽花",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "101002",
+        "200502"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9b4c59908d979f21d441200b6066a72b.png",
+      "local_path": "roles/icons/132102.png",
+      "sha256": "a347ca886ee8d2f364dda93bac6229f5eccc21007910d6e2c60c3bcdf469df92",
+      "size": 72401
+    },
+    {
+      "role_id": "131702",
+      "name": "乱破",
+      "normalized_name": "乱破",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "101102",
+        "200502"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/86f56aac63d2cc6752070c115117df80.png",
+      "local_path": "roles/icons/131702.png",
+      "sha256": "96701b29a3a6738d899d88ec8f53886badbafeb9db94a288bc9617f18a5c2f1f",
+      "size": 74115
+    },
+    {
+      "role_id": "122002",
+      "name": "飞霄",
+      "normalized_name": "飞霄",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100102",
+        "200102"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f73ec118aecbcb5b58462ead072e68b7.png",
+      "local_path": "roles/icons/122002.png",
+      "sha256": "b4ed5ececd851cceefe3fcb7a5e4c196c802243e0ed97280836e7edf5564faab",
+      "size": 79367
+    },
+    {
+      "role_id": "121802",
+      "name": "椒丘",
+      "normalized_name": "椒丘",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100102",
+        "200202"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/11e31ad95913f66c799a8dbed6f93c3f.png",
+      "local_path": "roles/icons/121802.png",
+      "sha256": "4dd611a37fadc8a736897a7f95cdc5402b26690f56626ba0082d69be504b1e9c",
+      "size": 71165
+    },
+    {
+      "role_id": "121202",
+      "name": "镜流",
+      "normalized_name": "镜流",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100702",
+        "200402"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d97e43268e8f78589c7f58ba0a51f01d.png",
+      "local_path": "roles/icons/121202.png",
+      "sha256": "73396341e6e04b1bd2744325a6adaa82898cb423f72826c9eb5b7eae460259a2",
+      "size": 68648
+    },
+    {
+      "role_id": "120802",
+      "name": "符玄",
+      "normalized_name": "符玄",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100902",
+        "200802",
+        "201102"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/f11f74d25e7c8dcc95d60f91007c2b47.png",
+      "local_path": "roles/icons/120802.png",
+      "sha256": "e5ee47bf5dcb871933dc2eab229bb07d8721520f1d1551f506a9f91aeca0d68a",
+      "size": 75344
+    },
+    {
+      "role_id": "120302",
+      "name": "罗刹",
+      "normalized_name": "罗刹",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "201002"
+      ],
+      "rarity": "3",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/acaa77de5f95777af54e82e430c57421.png",
+      "local_path": "roles/icons/120302.png",
+      "sha256": "7f80c863c53d659a0d6688740efdd8dc55a064137add5ac86193f3f11d088206",
+      "size": 65827
+    },
+    {
+      "role_id": "151302",
+      "name": "砂金•戏浪",
+      "normalized_name": "砂金•戏浪",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100602",
+        "200702"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/cd588bbe08baca8b793787a36e76302e.png",
+      "local_path": "roles/icons/151302.png",
+      "sha256": "990a2a99e7cfbc1be54291fee45c8d4f6b44b3d18360e0c0e07d8f39a5e6d9f6",
+      "size": 58043
+    },
+    {
+      "role_id": "151112",
+      "name": "星神★阿哈",
+      "normalized_name": "星神★阿哈",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "200702",
+        "300602"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9992dd2ff280e580fe05729d34279568.png",
+      "local_path": "roles/icons/151112.png",
+      "sha256": "2dd0608956970d345a42314da01baeaae4298aeeaabff3600413f2a8bb7a1dc4",
+      "size": 71783
+    },
+    {
+      "role_id": "151002",
+      "name": "姬子•启行",
+      "normalized_name": "姬子•启行",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100502",
+        "200902"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/45fe4333169df99705ab6cd332d7e174.png",
+      "local_path": "roles/icons/151002.png",
+      "sha256": "921bb31f29e302668cf179a42a29632b47207a17ab9a572a85b0e9b17f16e2c9",
+      "size": 64892
+    },
+    {
+      "role_id": "150702",
+      "name": "千冶•刃",
+      "normalized_name": "千冶•刃",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100302",
+        "100802",
+        "200302"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/1724dd482df509e8c57826ab6fda0cbd.png",
+      "local_path": "roles/icons/150702.png",
+      "sha256": "114b964261de8146b3820248f0d3b0d8073fcef3a43884b329016e89b910e85e",
+      "size": 60178
+    },
+    {
+      "role_id": "141502",
+      "name": "昔涟",
+      "normalized_name": "昔涟",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101202",
+        "200602"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/e251cbaedd7380820fdf6e29f6d9cb0a.png",
+      "local_path": "roles/icons/141502.png",
+      "sha256": "7191e93464669f4cd45f179fec43b3fd09a5d847f5dc7b890daa7d00d3e01a83",
+      "size": 77468
+    },
+    {
+      "role_id": "140902",
+      "name": "风堇",
+      "normalized_name": "风堇",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100202",
+        "200602",
+        "201002"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ca21363b272d3e84f84acfce33f1ec63.png",
+      "local_path": "roles/icons/140902.png",
+      "sha256": "7bc679e259ae31b6e5862fc07b3766a2f4087061d6774871e4638903cf75246b",
+      "size": 77650
+    },
+    {
+      "role_id": "140302",
+      "name": "缇宝",
+      "normalized_name": "缇宝",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100902",
+        "200102"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/34a81933a8e6db112e0bd9be178296d2.png",
+      "local_path": "roles/icons/140302.png",
+      "sha256": "50d21e9805e1f5fb43e5aa2e3326bee8f99cdeb8dbe4a484711368479da8bcff",
+      "size": 72050
+    },
+    {
+      "role_id": "130802",
+      "name": "黄泉",
+      "normalized_name": "黄泉",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101002",
+        "200302"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/c071bbe4c455985e206fa702b6a56723.png",
+      "local_path": "roles/icons/130802.png",
+      "sha256": "14565105e79833ae9920b2850f7372a6c87893a246e3901b4e2ca973c55d683a",
+      "size": 72059
+    },
+    {
+      "role_id": "130402",
+      "name": "砂金",
+      "normalized_name": "砂金",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "200102",
+        "201102"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/3ddfb3802833e9faabf198401273b521.png",
+      "local_path": "roles/icons/130402.png",
+      "sha256": "8ca43e3c186140222161596d8a7de76ef5fcb41c461a849daa6d276fa64b49b5",
+      "size": 62372
+    },
+    {
+      "role_id": "121702",
+      "name": "藿藿",
+      "normalized_name": "藿藿",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100902",
+        "200902",
+        "201002"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/1c8a30abb7eb57db444267f6ad67f8ae.png",
+      "local_path": "roles/icons/121702.png",
+      "sha256": "399d24c6a355c2349ba0733b56299143500c53a862168573174cd41aee954571",
+      "size": 74264
+    },
+    {
+      "role_id": "121502",
+      "name": "寒鸦",
+      "normalized_name": "寒鸦",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100102",
+        "200402"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/ad6046b107fae4fa04f7f24a45d89b99.png",
+      "local_path": "roles/icons/121502.png",
+      "sha256": "3b8cf3e1ac71276b0ada0650a02474a3f31eead8949b88fc9d106acd89bb5b51",
+      "size": 55886
+    },
+    {
+      "role_id": "120502",
+      "name": "刃",
+      "normalized_name": "刃",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100702",
+        "200802"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d9c53996cf478a5bbe994b76ac5ed222.png",
+      "local_path": "roles/icons/120502.png",
+      "sha256": "abd89d4a70ce629fbf42ff416256a858717333c21092a165b470c317bb985dfb",
+      "size": 59356
+    },
+    {
+      "role_id": "110302",
+      "name": "希露瓦",
+      "normalized_name": "希露瓦",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "101102",
+        "200202"
+      ],
+      "rarity": "4",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d703e134b6847325ef60a04deed4c732.png",
+      "local_path": "roles/icons/110302.png",
+      "sha256": "9060c9f11f8c7a617a4ecbe03e5fcdfb0a7c1bc05ca675decb3288e11d9a6229",
+      "size": 70076
+    },
+    {
+      "role_id": "604202",
+      "name": "帕姆王",
+      "normalized_name": "帕姆王",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100502"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/1108c0b2958275863b6567917d7afde1.png",
+      "local_path": "roles/icons/604202.png",
+      "sha256": "a645bb7e007a3658f903feff6daf6bca439d1cd123e6e556eb05c082afdd797c",
+      "size": 75041
+    },
+    {
+      "role_id": "151122",
+      "name": "星神★阿哈",
+      "normalized_name": "星神★阿哈",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "200702",
+        "300602"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9992dd2ff280e580fe05729d34279568.png",
+      "local_path": "roles/icons/151122.png",
+      "sha256": "2dd0608956970d345a42314da01baeaae4298aeeaabff3600413f2a8bb7a1dc4",
+      "size": 71783
+    },
+    {
+      "role_id": "150402",
+      "name": "不死途",
+      "normalized_name": "不死途",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100302",
+        "200102",
+        "300302"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/34a893d990f0ddf4567d6fcd10777102.png",
+      "local_path": "roles/icons/150402.png",
+      "sha256": "22165ef65af4e7605bff576363eef3ab9097d522fc28e45c23ce350ffb0571dc",
+      "size": 67994
+    },
+    {
+      "role_id": "141402",
+      "name": "丹恒•腾荒",
+      "normalized_name": "丹恒•腾荒",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "300102"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/2c9600b365645aa69b58d991fb3e31e4.png",
+      "local_path": "roles/icons/141402.png",
+      "sha256": "d91e256c713c54e98618c28f29b974ee17eeec22cee5a510f9397ef2fce22b21",
+      "size": 64155
+    },
+    {
+      "role_id": "140802",
+      "name": "白厄",
+      "normalized_name": "白厄",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "101202",
+        "300202"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d5a8ffe5785ff187b260a3f9a5ff4515.png",
+      "local_path": "roles/icons/140802.png",
+      "sha256": "61abad38ccce4d2c8bde67eb16aaf11ccc9aac632ba8f1da40c61774d9d00e6e",
+      "size": 65681
+    },
+    {
+      "role_id": "140202",
+      "name": "阿格莱雅",
+      "normalized_name": "阿格莱雅",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100202",
+        "200402"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/d4a0c32763d9e5c454e71176da8cf320.png",
+      "local_path": "roles/icons/140202.png",
+      "sha256": "07681519dac61eb928fca41a5d8f2b9574ee21f867780ab025c39bfb947c621f",
+      "size": 70635
+    },
+    {
+      "role_id": "131402",
+      "name": "翡翠",
+      "normalized_name": "翡翠",
+      "front_back_type": "Back",
+      "trait_ids": [
+        "100602",
+        "200302",
+        "300402"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/0b74062e805f00b4a9f332de8fd69846.png",
+      "local_path": "roles/icons/131402.png",
+      "sha256": "f42466faa12ba4abc80c965bf0e872d823e2602cd77a12ab9172cbfdbffc646b",
+      "size": 77802
+    },
+    {
+      "role_id": "121402",
+      "name": "雪衣",
+      "normalized_name": "雪衣",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100102",
+        "200502"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/fbb4031c686dba9af5439c161971ba65.png",
+      "local_path": "roles/icons/121402.png",
+      "sha256": "a30beeaafd1ad663172a73c25d984cc3283241291dc8852689f10e41da62cc22",
+      "size": 58469
+    },
+    {
+      "role_id": "121302",
+      "name": "丹恒•饮月",
+      "normalized_name": "丹恒•饮月",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100502",
+        "100702",
+        "300102"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/7d80986246f00f89f2a2407f5da4be04.png",
+      "local_path": "roles/icons/121302.png",
+      "sha256": "3b6e944b1fdb1aa1b022da8c65b7963084d79dc3d5729fddb84f44b0735c16f7",
+      "size": 59149
+    },
+    {
+      "role_id": "110702",
+      "name": "克拉拉",
+      "normalized_name": "克拉拉",
+      "front_back_type": "Common",
+      "trait_ids": [
+        "100402",
+        "200802",
+        "300502"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/0b0445103936f4f6cc546f280197b9ab.png",
+      "local_path": "roles/icons/110702.png",
+      "sha256": "b1a91dcb7f71923feef7e3bbd0db5e1088ba735c15b805e86de33eb39bda107c",
+      "size": 64237
+    },
+    {
+      "role_id": "100502",
+      "name": "卡芙卡",
+      "normalized_name": "卡芙卡",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "100802",
+        "200202"
+      ],
+      "rarity": "5",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/eb1a84778a80b5481a1928603302983b.png",
+      "local_path": "roles/icons/100502.png",
+      "sha256": "b3c45f4da28c28f7f4a41fd10f1b30fd97ddef499cc4e9ee210c8016b54ba524",
+      "size": 56956
+    },
+    {
+      "role_id": "151132",
+      "name": "星神★阿哈",
+      "normalized_name": "星神★阿哈",
+      "front_back_type": "Front",
+      "trait_ids": [
+        "200702",
+        "300602"
+      ],
+      "rarity": "7",
+      "cost": null,
+      "icon_url": "https://act-webstatic.mihoyo.com/darkmatter/hkrpg/prod_gf_cn/item_icon_ubd4re/9992dd2ff280e580fe05729d34279568.png",
+      "local_path": "roles/icons/151132.png",
+      "sha256": "2dd0608956970d345a42314da01baeaae4298aeeaabff3600413f2a8bb7a1dc4",
+      "size": 71783
+    }
+  ]
+}

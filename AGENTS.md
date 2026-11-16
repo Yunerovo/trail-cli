@@ -91,6 +91,16 @@
 
 ## guide / cw 攻略摘要约束
 
+- `cw.portal.select --no-guide` 属于环境选择兼容分支，输出 `info status=observed stage=...`。只有 `stage=preparation` 进入 prep handoff。
+- `cw.battle.run --no-auto-collect` 返回战斗阶段事实，备战收取动作由调用者显式提交。第二赛季决策阶段使用 `voyage_companion`、`plot_armor`。
+- `cw.stage.read` 属于列表读取 renderer，首行固定为 `ok cw.stage.read stage=<stage|unknown> count=<n>`，正文用 `text idx=... text=... box=...`。
+- `cw.slots.read` 使用 `slot pos=hand:N kind=weapon_box name=简易武装箱` 表示占用备战席的武装箱。首行的 hand 仍统计占用格，stage status 的 role_count 只统计角色。
+- `cw.hand.open_box` 使用列表读取 renderer，首行 `ok cw.hand.open_box pos=hand:N name=简易武装箱 count=4`，使用 `opt idx=... name=... center=x,y` 返回弹窗选项。未知的名字输出 `unknown`，选项位置仍保留。命令停在 `weapon_box` 阶段，YAML 不支持。
+- `cw.crystals.collect` 返回 `status=done|none_visible|blocked|unconfirmed`。有实机读数时同时返回 `stage/swipes/collected/visible_remaining`。计数包含明确识别并确认消失的蓝色和黄金晶球；swipes 只计蓝色划动。
+- `cw.event.open_aura_reselect` 使用 `cw.stage.read` 的列表读取格式。不带 `--option` 读取光环详情，带编号时打开对应卡片的重选确认。
+- `cw.event.drag_aura_role` 和 `cw.replenish.refresh` 使用 `cw.stage.read` 的列表读取格式。前者用首行 `source`（光环页 1-based 槽位）和 `verified=1` 表示角色已拖入中央主角框。后者首行保留 `refresh_remaining`，即使为 `0`。两者返回用于核实结果的截图，不加入 YAML allowlist。
+- `cw.equipment.open_chimera_projector` 使用检测/状态摘要 renderer，返回确认的 `name/stage/next_action`。确认选择页后停下，由调用方选择奇美拉。这两条 mutation 不支持 YAML。
+- `cw.stage.opening` 从 4.7 开局预览打开详情并关闭，保留在预览页。首行给出伙伴、敌人难度、首领和词缀数量。首领和词缀用 `item`，数值和职级效果用 `info`。支持 YAML，未读到的词缀详情返回 null。
 - guide.list.cw 的默认文本改用 攻略ID/攻略标题/版本/主C/攻略标签/最终阵容，并继续保留 `count`、`more`、`next`、`idx` 这些冻结控制字段。
 - `guide.list.cw` 非分组条目字段冻结为 `攻略ID/攻略标题/版本/主C/攻略标签/点赞/收藏`；第二行固定使用 `guide ... 最终阵容=...`，不能回退成 `final_role_cards` 或布尔技术位直出。
 - `guide.list.cw` 分组视图固定使用 `guide 投资环境=... count=... more=...`；只有分组行允许携带 `next=...`，顶层 grouped 首行不带 `next`。
@@ -118,6 +128,7 @@
 - `cw.equipment.read` 在 slots 缺失或 stale 时，`# 装备优先级` 仍可输出攻略顺序、基础装备持有情况和需求角色，但不得输出依赖当前角色集合的已获取/未获取字段；`# 角色装备需求` 输出 `info todo=slots`，提示先刷新 `cw.slots.read`。
 - `cw.equipment.read` 默认文本不输出 `idx/row/col/box`；`row/col` 只保留在结构化 `data`、`trail --format yaml cw equipment read --session <id>` 与 `trail --format yaml state dump --session <id>` 的 `cw_state.equipment` 中，供诊断使用。
 - `cw.equipment.read` 单格低置信不失败；当 `uncertain>0` 时默认文本输出 `warn code=LOW_CONFIDENCE count=... msg=...`。
+- 4.7 使用第二赛季装备格布局。显式传 `--consumables` 时，在装备 `item` 后输出 `info consumables=<n|unknown>` 和 `item kind=consumable name=... count=... center=x,y`，YAML 使用独立的 `consumables` 字段。装备格的 `count/uncertain/empty` 仍只统计装备。
 - `cw.equipment.read` 成功写入 `cw_state.equipment` 最近快照，并加入 YAML allowlist；除 `cw.equipment.prepare` 外，成功进入 CW mutation 处理的命令应保留最近装备 items 并将该快照标记为 `stale=True`。
 - `cw.equipment.read` daemon 默认热路径使用 bundle recognizer 与预计算特征，不调用 `prepare_equipment_icon_cache`、下载图标或 `load_cached_equipment_icons`；需要刷新装备资源时先显式运行 `cw.equipment.prepare --refresh`。
 - `cw.equipment.compose` 归入检测/状态摘要 renderer 家族；canonical command 固定为 `cw.equipment.compose`；success 首行固定为 `ok cw.equipment.compose pos=<agent-visible-slot> name=<角色名> 装备=<装备名> count=<角色装备数>`，字段顺序固定为 `pos/name/装备/count`，其中 `count` 是写入后该角色已记录装备数量。
@@ -130,13 +141,16 @@
 - `cw.equipment.prepare` 默认只验证/汇总 bundle 装备资源，不下载图标、不写 workspace override；只有 `cw.equipment.prepare --refresh` 写 workspace equipment override、刷新图标/特征，并处理同一 `rpg_game_big_version` 下 `cache_key` 的 `icon_url` 变化。`cw.equipment.prepare` 不加入 YAML allowlist。
 - `cw.shop.buy_exp` 属于 shop action renderer family；canonical command 是 `cw.shop.buy_exp`，success 首行固定为 `ok cw.shop.buy_exp opened=1 stale=0 count=<n>`，正文使用 `# 商店信息` 输出 `item` 与 `coins/reserve_full`，再用 `# 综合信息` 输出 `level/exp/team_size`。
 - `cw.shop.buy_exp` 的 `team_size=null` 是 must-keep null fact；`cw.shop.buy_exp` 不在 YAML allowlist，`--format yaml` 返回 `OUTPUT_FORMAT_NOT_SUPPORTED`。
+- `cw.shop.plan_exp` 只读当前画面，输出 `status/target_level`、等级、经验、余额、每次实际价格、所需笔数和总价；支持 YAML 以保留未知值。指定 `cw shop buy-exp --target-level N` 使用 `cw.shop.buy_exp_to_level`，可另传 `--max-gold`，每次输入后核对经验和余额。回包保留已核实的 `purchases_verified/gold_spent`，包括 0；`unconfirmed` 时查看截图和余额再决定后续动作。
 - `cw.battle.run` 属于检测/状态摘要 renderer 家族；success 首行固定使用 `ok cw.battle.run status=... result=... stage=... stale=... in_battle=...` 的顺序，缺失语义值按默认省略规则处理。
+- `cw.battle.run` 和 `cw.battle.replay` 返回 `battle_report`。结果 `ended` 对应只有「挑战结束」的画面，`lose` 可由「未完成进度伤害」确认。战中行动值变化与战后生命值明细各用 `item` 行报告，进度及是否达标用 `info`。未知值在文本为 `unknown`，在 YAML 为 `null`。两条命令均支持 YAML。
 - `cw.battle.run` 的 `status=in_progress` success 必须输出 `info next_action=cw.battle.run why=battle_flow_not_finished`，提示 Agent 先看截图并在仍处于 battle flow 时重跑 `cw.battle.run`。
 - `cw.battle.run` 的整局失败结算 success 固定收口为 `status=completed result=lose stage=game_over stale=0 in_battle=0`，会点击 `返回货币战争` 回到货币战争主页，并输出 `info game_over=1 end_reason=global_battle_failed restart_candidate=1 returned_home=1`；能识别到 `round/hp/score/promotion_points/settle_text` 时按既有 `info` 行补充，供 Agent 判断是否重开。
 - `cw.battle.run` 在 `status=completed stage=preparation` 时会自动收集普通备战 facts，追加与 `cw.portal.select` 同类的 stage/slots/equipment/shop/crystals/skill_info 信息；为节约时间，`cw.battle.run` 使用 `crystals -> slots -> shop -> equipment` 顺序，`cw.portal.select` 保持 `crystals -> slots -> equipment -> shop` 顺序。
+- `cw.battle.run --stop-at-plane` 保留本场战报并在位面入口返回 `status=completed stage=layer_transition`。下一节点的 `current_node` 独立于战报 `round`。若停在可读决策页面，返回该页文字和位置。晶矿阶段检测到拦截页时停止后续采集。
 - `cw.battle.run` 只有 `status=completed stage=preparation` 才命中 workflow handoff；`game_over`、`settle`、`layer_transition` 或 `in_progress` 不得触发 `trail-cw-prep`。
 - `cw.battle.clear_in_progress` canonical command 固定为 `cw.battle.clear_in_progress`，归入检测/状态摘要 renderer 家族；success 首行固定为 `ok cw.battle.clear_in_progress cleared=0|1`。
-- `cw.battle.clear_in_progress` 只清 battle.run 的内部续跑提示位，不清 battle 摘要、`last_result`、`last_screenshot` 或阶段事实；它不产出截图，不加入 YAML allowlist。
+- `cw.battle.clear_in_progress` 只清 battle.run 的内部续跑与待确认出战提示，不清 battle 摘要、`last_result`、`last_screenshot` 或阶段事实；它不产出截图，不加入 YAML allowlist。
 - `cw.shop.scan|status` 的 stage 投影固定使用 `stage_level/stage_exp/stage_team_size/stage_status_stale`，属于既有 `info` 行，不新增正文前缀。
 - `cw.shop.scan|status` 必须保留 `stage_status_stale=0|1`；只有 `stage_status_stale=0` 时才允许输出 `stage_level/stage_exp/stage_team_size`，stale 或缺失时不得把旧值渲染成有效事实。
 - `cw.shop.status 不产出截图`，也不输出 `info read_image_first=1`；它只读取 session / artifact 汇总，不得为了 status 补图。

@@ -54,7 +54,9 @@ def test_fake_daemon_records_control_without_polluting_payload(cli_runner, fake_
     assert client.calls[0]["workspace_root"] == str(tmp_path)
 
 
-def test_start_forwards_global_request_id_and_wait_timeout_as_control(cli_runner, fake_daemon_client):
+def test_start_forwards_global_request_id_and_wait_timeout_as_control(cli_runner, fake_daemon_client, monkeypatch, tmp_path):
+    monkeypatch.setattr("trail.commands.start._ensure_local_daemon_installed", lambda: tmp_path)
+    monkeypatch.setattr("trail.commands.start._ensure_local_daemon_ready", lambda _: None)
     client = fake_daemon_client(
         {"start.run": build_success_response(request_id="call-1", data={"state": "running", "request": "job-1", "waited": 3})}
     )
@@ -67,7 +69,9 @@ def test_start_forwards_global_request_id_and_wait_timeout_as_control(cli_runner
     assert client.calls[0]["control"] == {"mode": "async_wait", "wait_timeout": 3.0, "side_effect_stage": "none"}
 
 
-def test_start_forwards_command_level_request_id(cli_runner, fake_daemon_client):
+def test_start_forwards_command_level_request_id(cli_runner, fake_daemon_client, monkeypatch, tmp_path):
+    monkeypatch.setattr("trail.commands.start._ensure_local_daemon_installed", lambda: tmp_path)
+    monkeypatch.setattr("trail.commands.start._ensure_local_daemon_ready", lambda _: None)
     client = fake_daemon_client(
         {"start.run": build_success_response(request_id="call-2", data={"state": "running", "request": "job-2", "waited": 100})}
     )

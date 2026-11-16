@@ -13,6 +13,8 @@
 
 Trail 包含 Windows 命令行程序和配套 skills。安装后，Agent 可以调用 `trail` 截图、OCR、操作窗口，并按 Trail skills 推进流程。
 
+本地适配分支内置 4.7「货币战争·入画奇航」第二赛季第 1 期资源。开发者可运行 `uv sync --locked --python 3.12` 后用 `uv run trail --help` 查看命令。重新生成资源包时，运行 `uv run python scripts/build-cw-resource-bundle.py --snapshot-root <4.7正式服第1期目录>`。
+
 ## 功能一览
 
 - **本地接管** — 启动或接管游戏窗口。

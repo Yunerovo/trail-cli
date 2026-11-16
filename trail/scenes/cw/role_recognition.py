@@ -264,6 +264,7 @@ def fee_color_for_tier(value: object) -> str:
         "3": "blue",
         "4": "purple",
         "5": "gold",
+        "7": "pink",
     }.get(tier, "unknown")
 
 
@@ -273,10 +274,13 @@ def fee_color_from_crop(crop: Image.Image) -> str:
     if rgb.size == 0:
         return "unknown"
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
-    mean_hue = float(np.mean(hsv[:, :, 0]))
     median_saturation = float(np.median(hsv[:, :, 1]))
     if median_saturation < 45:
         return "gray"
+    median_hue = float(np.median(hsv[:, :, 0]))
+    if 155 <= median_hue <= 179:
+        return "pink"
+    mean_hue = float(np.mean(hsv[:, :, 0]))
     if 75 <= mean_hue <= 98:
         return "green"
     if 105 <= mean_hue <= 122:
@@ -472,6 +476,15 @@ def empty_template_score(
     return _clamp_score(0.70 * mean_abs + 0.30 * hist_corr)
 
 
+def _is_plain_field_slot(crop: Image.Image) -> bool:
+    # 4.7 paints the empty front/back cells violet, with only a faint outline.
+    # Compare the interior, outside the bright frame, to avoid matching portraits
+    # against a differently coloured empty-slot template.
+    interior = np.asarray(crop.convert("RGB").crop((12, 14, 91, 107)), dtype=np.float32)
+    red, green, blue = np.median(interior, axis=(0, 1))
+    return blue - max(red, green) >= 18 and float(interior.std(axis=(0, 1)).max()) <= 10
+
+
 def _role_payload_base(entry: RoleCatalogEntry) -> dict[str, Any]:
     return {
         "role_id": entry.role_id,
@@ -538,8 +551,11 @@ def choose_role_candidate_by_fee(
         return top
     if fee_color == "unknown":
         return top
-    fee_matches = [candidate for candidate in candidates if _candidate_fee_color(candidate) == fee_color]
-    if len(fee_matches) == 1 and fee_matches[0] is not top and top.score - fee_matches[0].score < min_gap:
+    fee_matches = [
+        candidate for candidate in candidates
+        if _candidate_fee_color(candidate) == fee_color and top.score - candidate.score < min_gap
+    ]
+    if len(fee_matches) == 1:
         return fee_matches[0]
     return top
 
@@ -623,16 +639,21 @@ def detect_slot_stars(crop: Image.Image) -> list[dict[str, Any]]:
         ):
             continue
         selected.append(candidate)
-        if len(selected) >= 3:
+        if len(selected) >= 4:
             break
     selected.sort(key=lambda item: (int(item["x"]), int(item["y"])))
     return selected
 
 
-def warp_slot_crop(image: Image.Image, slot_spec: SlotSpec) -> Image.Image:
+def warp_slot_crop(image: Image.Image, slot_spec: SlotSpec, *, shop_open: bool = False) -> Image.Image:
     if image.size != CANONICAL_SCREENSHOT_SIZE:
         raise TrailError("SLOTS_LAYOUT_MISMATCH", "slots icon reader requires canonical 1920x1080 screenshot")
     source = np.array(slot_spec.quad, dtype=np.float32)
+    if shop_open and slot_spec.area != "hand":
+        source[:, 0] = (source[:, 0] - 960) * 0.8 + 960
+        row_top = 339.7 if slot_spec.area == "front" else 611.7
+        shop_top = 440 if slot_spec.area == "front" else 647
+        source[:, 1] = (source[:, 1] - row_top) * 0.8 + shop_top
     target = np.array(((0, 0), (102, 0), (102, 119), (0, 119)), dtype=np.float32)
     matrix = cv2.getPerspectiveTransform(source, target)
     warped = cv2.warpPerspective(np.array(image.convert("RGBA"), dtype=np.uint8), matrix, SLOT_TARGET_SIZE)
@@ -730,6 +751,12 @@ class VectorRoleIconRecognizer:
         crop = crop.convert("RGBA")
         star_boxes = detect_slot_stars(crop)
         fee_color = fee_color_from_crop(crop)
+        if area != "hand" and not star_boxes and _is_plain_field_slot(crop):
+            return RoleRecognitionResult(
+                name=None, role_id=None, candidates=[], score=None, empty=True,
+                star_count=0, star_boxes=[], fee_color=fee_color,
+                match_kind="empty", confidence_reason="plain_field_slot",
+            )
         query_image, query_mask = _card_feature(crop, star_boxes)
         candidates = self._rank_candidates(query_image, query_mask)
         best_role_score = candidates[0].score if candidates else 0.0
@@ -753,6 +780,18 @@ class VectorRoleIconRecognizer:
 
         selected = choose_role_candidate_by_fee(candidates, fee_color, min_gap=self.min_gap)
         second = _second_candidate(candidates, selected)
+        ambiguous_variants = [
+            candidate for candidate in candidates
+            if selected is not None and candidate.name == selected.name and candidate is not selected
+            and abs(candidate.score - selected.score) < self.min_gap
+        ]
+        unidentified_variant = bool(ambiguous_variants) and (
+            fee_color == "unknown"
+            or _candidate_fee_color(selected) != fee_color
+            or any(_candidate_fee_color(candidate) == fee_color for candidate in ambiguous_variants)
+        )
+        if ambiguous_variants and not unidentified_variant:
+            second = next((candidate for candidate in candidates if candidate.name != selected.name), None)
         confidence = classify_role_confidence(
             selected,
             second,
@@ -781,17 +820,17 @@ class VectorRoleIconRecognizer:
             )
         return RoleRecognitionResult(
             name=selected.name,
-            role_id=selected.role_id,
+            role_id=None if unidentified_variant else selected.role_id,
             candidates=candidates,
             score=selected.score,
             empty=False,
             star_count=len(star_boxes),
             star_boxes=star_boxes,
             fee_color=fee_color,
-            match_kind=confidence.match_kind,
-            confidence_reason=confidence.confidence_reason,
-            rarity=selected.rarity,
-            cost=selected.cost,
+            match_kind="low_confidence" if unidentified_variant else confidence.match_kind,
+            confidence_reason="role_variant_unknown" if unidentified_variant else confidence.confidence_reason,
+            rarity=None if unidentified_variant else selected.rarity,
+            cost=None if unidentified_variant else selected.cost,
             diagnostics=_diagnostics(candidates, empty_score_value),
         )
 

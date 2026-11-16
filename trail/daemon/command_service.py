@@ -21,6 +21,7 @@ from trail.runtime.ocr_config import OCR_LANG_UNSUPPORTED, split_ocr_call
 
 
 CW_MUTATING_METHODS = {
+    "cw.stage.opening",
     "cw.enter",
     "cw.start",
     "cw.portal.select",
@@ -35,12 +36,15 @@ CW_MUTATING_METHODS = {
     "cw.shop.scan",
     "cw.shop.buy_slot",
     "cw.shop.buy_exp",
+    "cw.shop.buy_exp_to_level",
     "cw.shop.refresh",
     "cw.shop.close",
     "cw.crystals.collect",
     "cw.hand.sell",
+    "cw.hand.open_box",
     "cw.hand.sell_plan",
     "cw.replenish.choose",
+    "cw.replenish.refresh",
     "cw.invest.choose",
     "cw.encounter.choose",
     "cw.fortune.choose",
@@ -49,8 +53,11 @@ CW_MUTATING_METHODS = {
     "cw.battle.start",
     "cw.battle.continue",
     "cw.equipment.compose",
+    "cw.equipment.open_chimera_projector",
     "cw.settle.next",
     "cw.event.handle",
+    "cw.event.open_aura_reselect",
+    "cw.event.drag_aura_role",
     "cw.event.reconcile",
 }
 
@@ -63,7 +70,9 @@ CW_CAPTURE_METHODS = {
 
 CW_CAPTURED_READ_METHODS = {
     "cw.stage.detect",
+    "cw.stage.read",
     "cw.stage.wait",
+    "cw.shop.plan_exp",
     "cw.replenish.read",
     "cw.invest.read",
     "cw.encounter.read",
@@ -447,7 +456,12 @@ class CommandService:
         if request.method == "state.dump":
             service = self._session_service(request)
             session_id = request.payload.get("session_id") or request.session_id
-            return success(service.dump_state(session_id=session_id), request_id=request.request_id)
+            data = service.dump_state(session_id=session_id)
+            if request.payload.get("cw_run") is True:
+                cw_state = data.get("scene_state", {}).get("cw")
+                facts = cw_state.get("run_facts") if isinstance(cw_state, dict) else None
+                data = {"session_id": data["session_id"], "cw_run": facts}
+            return success(data, request_id=request.request_id)
 
         if request.method == "ocr.read":
             runtime = self._runtime(request)

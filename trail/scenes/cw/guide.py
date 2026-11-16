@@ -805,12 +805,17 @@ def _normalize_roles(role_list: object) -> list[dict[str, object]]:
     for item in role_list:
         if not isinstance(item, Mapping):
             continue
-        result.append({
+        role = {
             "id": item.get("id"),
             "name": str(item.get("name") or ""),
             "front_back_type": item.get("front_back_type"),
             "trait_ids": _normalize_role_trait_ids(item),
-        })
+        }
+        if (cost := item.get("cost") or item.get("rarity")) is not None:
+            role["cost"] = cost
+        if item.get("is_hide") is True:
+            role["is_hidden"] = True
+        result.append(role)
     return result
 
 
@@ -1501,6 +1506,8 @@ def normalize_cw_guide_config_data(
         "portal_list": _normalize_portal_list(data.get("portal_list")),
         "strategy_list": _normalize_strategy_list(strategy_source),
     }
+    if isinstance(data.get("spot_light_list"), list):
+        config["spot_light_list"] = deepcopy(data["spot_light_list"])
     if enrich_traits:
         config["traits"] = _enrich_cw_config_traits(
             data,

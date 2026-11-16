@@ -162,13 +162,15 @@ def restart_cw_portal_to_settlement_entry(session, *, runtime) -> None:
     raise TrailError("CW_PORTAL_RESTART_EXIT_DIALOG_TIMEOUT", "cw portal restart helper failed to reach exit dialog")
 
 
-def wait_cw_portal_in_game(session, *, runtime) -> None:
-    _wait_for_portal_page(
+def wait_cw_portal_in_game(session, *, runtime, after_selection: bool = False) -> dict[str, str]:
+    return _wait_for_portal_page(
         runtime,
         session=session,
         expected_page="in_game",
         error_code="CW_PORTAL_RESTART_ENTER_GAME_TIMEOUT",
-        error_message="cw portal.restart did not reach in_game after select",
+        error_message="cw portal did not reach in_game after select",
+        max_polls=PORTAL_PREPARATION_MAX_POLLS if after_selection else PORTAL_SETTLE_MAX_POLLS,
+        interval=PORTAL_PREPARATION_INTERVAL if after_selection else PORTAL_SETTLE_INTERVAL,
     )
 
 
@@ -458,6 +460,7 @@ def _summarize_lane(card_idx: int, pieces: list[dict[str, float | str]], portals
     best_portal, score = _match_best_portal(card_text, portals)
     return {
         "card_idx": card_idx,
+        "portal_id": best_portal["portal_id"],
         "portal_title": best_portal["title"],
         "portal_description": best_portal["description"],
         "score": score,
@@ -492,13 +495,16 @@ def _build_lane_text(pieces: list[dict[str, float | str]]) -> str:
 
 def _match_best_portal(card_text: str, portals: list[dict[str, str]]) -> tuple[dict[str, str], float]:
     normalized_card_text = _normalize_text(card_text)
+    exact_titles = [portal for portal in portals if _normalize_text(portal["title"]) == normalized_card_text]
+    if len(exact_titles) > 1:
+        return {"portal_id": "", "title": exact_titles[0]["title"], "description": ""}, 0.0
     ranked: list[tuple[float, float, str, dict[str, str]]] = []
     for portal in portals:
         normalized_title = _normalize_text(portal["title"])
         normalized_combined = _normalize_text(" ".join(part for part in [portal["title"], portal["description"]] if part))
         title_score = SequenceMatcher(a=normalized_card_text, b=normalized_title).ratio() if normalized_title else 0.0
         combined_score = SequenceMatcher(a=normalized_card_text, b=normalized_combined).ratio() if normalized_combined else 0.0
-        ranked.append((max(title_score, combined_score), title_score, portal["portal_id"], portal))
+        ranked.append((max(title_score, combined_score), combined_score, portal["portal_id"], portal))
 
     ranked.sort(key=lambda item: (-item[0], -item[1], item[2]))
     best_score, _, _, best_portal = ranked[0]

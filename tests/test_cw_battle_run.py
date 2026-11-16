@@ -387,7 +387,7 @@ def test_classify_cw_battle_page_treats_chuzhan_preparation_page_as_battle_start
     assert result == "battle_start"
 
 
-def test_classify_cw_battle_page_treats_detected_preparation_as_battle_start_when_ocr_misses(
+def test_classify_cw_battle_page_treats_detected_preparation_as_board_when_ocr_misses(
     tmp_path: Path, monkeypatch
 ):
     battle_scene = load_cw_battle_module()
@@ -396,7 +396,7 @@ def test_classify_cw_battle_page_treats_detected_preparation_as_battle_start_whe
 
     result = battle_scene.classify_cw_battle_page(runtime, session=build_session(tmp_path))
 
-    assert result == "battle_start"
+    assert result == "preparation"
 
 
 def test_classify_cw_battle_page_prefers_settlement_entry_over_battle_hud(tmp_path: Path):
@@ -939,7 +939,7 @@ def test_parse_cw_settlement_summary_reads_stable_fields():
     }
 
 
-def test_parse_cw_settlement_summary_treats_challenge_end_with_continue_as_win():
+def test_parse_cw_settlement_summary_retains_challenge_end_without_calling_it_win():
     battle_scene = load_cw_battle_module()
     runtime = FakeRuntime(
         ocr_map={
@@ -953,7 +953,7 @@ def test_parse_cw_settlement_summary_treats_challenge_end_with_continue_as_win()
     result = battle_scene.parse_cw_settlement_summary(runtime)
 
     assert result == {
-        "result": "win",
+        "result": "ended",
         "round": "1-4",
         "hp": 82,
         "settle_text": "挑战结束",
@@ -977,6 +977,102 @@ def test_parse_cw_settlement_summary_raises_when_headline_unreadable():
         battle_scene.parse_cw_settlement_summary(runtime)
 
     assert exc_info.value.code == "CW_SETTLEMENT_UNREADABLE"
+
+
+def test_battle_report_reads_lethal_penalty_and_hp_rows_without_mixing_them():
+    from PIL import Image
+    from trail.scenes.cw.battle_report import BattleReport
+
+    class ReportRuntime(FakeRuntime):
+        def ocr_image(self, image, *, ocr=None):
+            assert image.size == (654, 268)
+            return [
+                _ocr_button_piece("小队生命值结算说明", left=220, top=65),
+                _ocr_button_piece("基础伤害", left=70, top=130),
+                _ocr_button_piece("-5", left=600, top=130),
+                _ocr_button_piece("未完成进度伤害", left=70, top=174),
+                _ocr_button_piece("10", left=600, top=174),
+                _ocr_button_piece("长线作战", left=70, top=220),
+                _ocr_button_piece("+2", left=600, top=220),
+            ]
+
+    runtime = ReportRuntime()
+    image = Image.new("RGB", (1920, 1080))
+    report = BattleReport()
+    event = [
+        _ocr_button_piece("1-4", left=690, top=0),
+        _ocr_button_piece("0%", left=755, top=0),
+        _ocr_button_piece("-35X", left=185, top=120),
+        _ocr_piece("受到致命攻击，战斗倒计时减少！"),
+    ]
+    report.observe(runtime, image, event, phase="battle")
+    report.observe(runtime, image, event, phase="battle")
+    report = BattleReport(report.state)
+    report.observe(runtime, image, event, phase="battle")
+    report.observe(runtime, image, [_ocr_piece("小队生命值结算说明")], phase="settlement")
+
+    data = report.apply({"result": "ended", "hp": 38})
+    assert data["result"] == "lose"
+    assert data["round"] == "1-4"
+    assert data["hp"] == 38
+    assert data["battle_report"] == {
+        "progress_pct": 0,
+        "minimum_progress_met": False,
+        "action_value_penalties": [{"kind": "lethal_hit", "delta": -35, "text": "受到致命攻击，战斗倒计时减少！"}],
+        "team_hp_breakdown": [
+            {"label": "基础伤害", "delta": -5},
+            {"label": "未完成进度伤害", "delta": -10},
+            {"label": "长线作战", "delta": 2},
+        ],
+    }
+
+
+def test_battle_hud_preserves_the_boundary_between_round_and_progress():
+    from trail.scenes.cw.battle_report import _parse_hud
+
+    assert _parse_hud([_ocr_piece("1-4"), _ocr_piece("45%")]) == ("1-4", 45)
+    assert _parse_hud([_ocr_piece("1-445%")]) == ("1-4", 45)
+    assert _parse_hud([_ocr_piece("1-10"), _ocr_piece("45%")]) == ("1-10", 45)
+
+
+def test_settlement_hp_uses_cropped_digits_instead_of_info_icon():
+    from PIL import Image
+
+    class SettlementRuntime(FakeRuntime):
+        def ocr_image(self, image, *, ocr=None):
+            assert image.width < 130
+            return [_ocr_piece("38")]
+
+    battle = load_cw_battle_module()
+    runtime = SettlementRuntime(ocr_map={
+        HEADLINE_CAPTURE_KEY: [_ocr_piece("挑战结束")],
+        STATS_CAPTURE_KEY: [_ocr_piece("小队生命值381")],
+    })
+    observation = battle.BattleObservation(
+        runtime, "settle", [], "挑战结束1-4X战斗小队生命值381继续挑战",
+        frame=Image.new("RGB", (1920, 1080)),
+    )
+    assert battle.parse_cw_settlement_summary(runtime, observation) == {
+        "round": "1-4", "hp": 38, "result": "ended", "settle_text": "挑战结束",
+    }
+
+
+@pytest.mark.parametrize("node", ["1-2奖励", "1-6战斗"])
+def test_successful_settlement_hp_reads_the_label_and_value_together(node):
+    from PIL import Image
+
+    class SettlementRuntime(FakeRuntime):
+        def ocr_image(self, image, *, ocr=None):
+            assert image.width > 400
+            return [_ocr_piece("小队生命值 84"), _ocr_piece("1")]
+
+    battle = load_cw_battle_module()
+    runtime = SettlementRuntime(ocr_map={STATS_CAPTURE_KEY: [_ocr_piece("小队生命值 41")]})
+    observation = battle.BattleObservation(
+        runtime, "settle", [], f"挑战成功{node}小队生命值841继续挑战",
+        frame=Image.new("RGB", (1920, 1080)),
+    )
+    assert battle.parse_cw_settlement_summary(runtime, observation)["hp"] == 84
 
 
 def test_mark_cw_stage_stale_clears_last_stage(tmp_path: Path):
@@ -1051,7 +1147,7 @@ def test_run_cw_battle_clicks_chuzhan_start_then_returns_completed_summary(tmp_p
     assert session.last_stage == {"scene": "cw", "value": "shop"}
 
 
-def test_run_cw_battle_starts_from_detected_preparation_when_ocr_misses_start_text(tmp_path: Path, monkeypatch):
+def test_run_cw_battle_does_not_start_without_start_text(tmp_path: Path, monkeypatch):
     battle_scene = load_cw_battle_module()
     session = build_session(tmp_path)
     runtime = ScriptedBattleRuntime(
@@ -1067,21 +1163,8 @@ def test_run_cw_battle_starts_from_detected_preparation_when_ocr_misses_start_te
 
     result = battle_scene.run_cw_battle(session, runtime=runtime, timeout=30)
 
-    assert result == {
-        "status": "completed",
-        "result": "win",
-        "stage": "shop",
-        "stale": False,
-        "in_battle": False,
-        "round": "1-1",
-        "hp": 82,
-        "coins": 4,
-        "exp": 2,
-        "settle_text": "挑战成功",
-    }
-    assert runtime.actions == ["start", "continue", "next"]
-    assert session.scene_state["cw"]["stage"] == {"value": "shop", "stale": False}
-    assert session.last_stage == {"scene": "cw", "value": "shop"}
+    assert result == {"status": "observed", "stage": "preparation", "stale": False, "in_battle": False}
+    assert runtime.actions == []
 
 
 def test_run_cw_battle_stops_on_next_round_preparation_after_settle(tmp_path: Path, monkeypatch):
@@ -1168,9 +1251,11 @@ def test_run_cw_battle_stops_on_detected_next_round_preparation_when_ocr_misses_
     battle_scene = load_cw_battle_module()
     session = build_session(tmp_path)
     runtime = ScriptedBattleRuntime(
-        ["preparation", "battle_progress", "settle_entry", "settle_followup", "preparation"],
-        battle_start_text="",
+        ["battle_start", "battle_progress", "settle_entry", "settle_followup", "preparation"],
+        battle_start_text="出战",
     )
+    original_ocr = runtime.ocr
+    runtime.ocr = lambda **kwargs: [] if runtime.state == "preparation" else original_ocr(**kwargs)
     _patch_run_loop(monkeypatch, battle_scene, runtime)
 
     result = battle_scene.run_cw_battle(session, runtime=runtime, timeout=30)
@@ -1404,7 +1489,7 @@ def test_run_cw_battle_resumes_challenge_end_settlement_entry_when_detector_miss
 
     assert result == {
         "status": "completed",
-        "result": "win",
+        "result": "ended",
         "stage": "shop",
         "stale": False,
         "in_battle": False,
@@ -1462,6 +1547,25 @@ def test_run_cw_battle_timeout_on_layer_transition_keeps_in_progress(tmp_path: P
     assert result["stage"] == "layer_transition"
     assert result["stale"] is True
     assert result["in_battle"] is False
+
+
+def test_run_cw_battle_keeps_report_and_stops_at_requested_layer_boundary(tmp_path: Path, monkeypatch):
+    battle_scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = LayerTransitionRuntime(["settle_entry", "layer_transition", "stable_stage"])
+    _patch_run_loop(monkeypatch, battle_scene, runtime)
+    monkeypatch.setattr(battle_scene, "build_cw_stage_detector", lambda _: runtime.detect_stage)
+    monkeypatch.setattr(
+        battle_scene, "_continue_after_settlement",
+        lambda _runtime, observation=None: runtime.run_action("continue"),
+    )
+
+    result = battle_scene.run_cw_battle(session, runtime=runtime, timeout=15, stop_at_plane=True)
+
+    assert result["status"] == "completed"
+    assert result["stage"] == "layer_transition"
+    assert "result" in result
+    assert runtime.actions == ["continue"]
 
 
 def test_run_cw_battle_advances_detected_layer_transition_without_ocr(tmp_path: Path, monkeypatch):
@@ -1791,3 +1895,278 @@ def test_run_cw_battle_returns_game_over_when_chain_ends(tmp_path: Path, monkeyp
     }
     assert session.scene_state["cw"]["stage"] == {"value": "game_over", "stale": False}
     assert session.last_stage == {"scene": "cw", "value": "game_over"}
+
+
+def test_battle_start_delayed_page_clicks_only_once_and_times_out(tmp_path, monkeypatch):
+    scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start"], sleep_advances_from=())
+    _patch_run_loop(monkeypatch, scene, runtime, start_advances=False)
+    result = scene.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert runtime.actions == ["start"]
+    assert result["status"] == "in_progress" and result["timeout_seconds"] == 2
+
+
+def test_battle_start_delayed_page_then_progress_does_not_click_twice(tmp_path, monkeypatch):
+    scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start", "battle_progress", "settle_entry", "settle_followup", "stable_stage"],
+                                    sleep_advances_from=("battle_start", "battle_progress"))
+    _patch_run_loop(monkeypatch, scene, runtime, start_advances=False)
+    result = scene.run_cw_battle(session, runtime=runtime, timeout=30)
+    assert runtime.actions.count("start") == 1
+    assert result["status"] == "completed" and result["result"] == "win"
+
+
+@pytest.mark.parametrize("old_hint", [False, True])
+def test_special_board_from_same_frame_never_starts(tmp_path, monkeypatch, old_hint):
+    from PIL import Image
+    battle_scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    if old_hint:
+        ensure_cw_state(session)["battle_resume"] = {"in_battle_hint": True}
+    runtime = ScriptedBattleRuntime(["preparation"])
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    runtime.ocr_image = lambda image, **kwargs: [
+        _ocr_button_piece("备战阶段", left=427, top=36),
+        _ocr_button_piece("幕后茶歇", left=1764, top=740),
+        _ocr_button_piece("1-8", left=440, top=65, width=50, height=25),
+        _ocr_button_piece("32", left=1440, top=65, width=40, height=25),
+        _ocr_button_piece("购买经验", left=244, top=855),
+    ]
+    _patch_run_loop(monkeypatch, battle_scene, runtime)
+    result = battle_scene.run_cw_battle(session, runtime=runtime, timeout=1)
+    assert result["status"] == "observed"
+    assert result["stage"] == "preparation" and result["in_battle"] is False
+    assert result["current_node"] == {"stage": "preparation", "node": "1-8", "hp": 32}
+    assert result["next_action"] == "cw.stage.read"
+    assert runtime.clicks == []
+    assert not ensure_cw_state(session)["battle_resume"].get("in_battle_hint")
+
+
+def test_special_text_outside_right_control_does_not_confirm_special(tmp_path):
+    from PIL import Image
+    battle_scene = load_cw_battle_module()
+    runtime = FakeRuntime()
+    pieces = [_ocr_button_piece("备战阶段", left=427, top=36),
+              _ocr_button_piece("幕后茶歇", left=100, top=740)]
+    observation = battle_scene.BattleObservation(runtime, None, pieces, "备战阶段幕后茶歇", Image.new("RGB", (1920, 1080)))
+    assert not battle_scene._is_special_preparation(observation)
+
+
+def test_same_frame_right_hand_battle_start_clicks_once(tmp_path, monkeypatch):
+    from PIL import Image
+    battle_scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start", "battle_progress", "stable_stage"])
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    runtime.ocr_image = lambda image, **kwargs: ([_ocr_button_piece("出战", left=1770, top=740)]
+        if runtime.state == "battle_start" else [_ocr_piece("自动战斗")])
+    _patch_run_loop(monkeypatch, battle_scene, runtime)
+    monkeypatch.setattr(battle_scene, "_fail_if_battle_team_count_confirm_dialog", lambda runtime: None)
+    def click(x, y):
+        runtime.clicks.append((x, y))
+        runtime.advance()
+    runtime.click_point = click
+    result = battle_scene.run_cw_battle(session, runtime=runtime, timeout=30)
+    assert result["status"] == "completed" and result["stage"] == "shop"
+    assert runtime.clicks == [(1830, 758)]
+
+
+def test_unknown_with_old_hint_does_not_claim_combat_on_timeout(tmp_path, monkeypatch):
+    battle_scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    ensure_cw_state(session)["battle_resume"] = {"in_battle_hint": True}
+    runtime = ScriptedBattleRuntime(["unknown"])
+    _patch_run_loop(monkeypatch, battle_scene, runtime)
+    result = battle_scene.run_cw_battle(session, runtime=runtime, timeout=0)
+    assert result["in_battle"] is None
+    assert runtime.clicks == []
+    assert not ensure_cw_state(session)["battle_resume"].get("in_battle_hint")
+
+
+def test_unconfirmed_start_is_not_clicked_again_on_next_request(tmp_path, monkeypatch):
+    battle_scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start"], sleep_advances_from=())
+    _patch_run_loop(monkeypatch, battle_scene, runtime)
+    first = battle_scene.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert first["in_battle"] is None
+    assert runtime.actions == ["start"]
+    second = battle_scene.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert second["status"] == "in_progress" and second["in_battle"] is None
+    assert runtime.actions == ["start"]
+
+
+def test_positioned_transition_outranks_stale_preparation(tmp_path):
+    from PIL import Image
+    battle = load_cw_battle_module()
+    runtime = FakeRuntime()
+    pieces = [_ocr_button_piece("战斗阶段", left=840, top=340, width=165),
+              _ocr_button_piece("3-1", left=1010, top=340, width=65),
+              _ocr_button_piece("备战阶段", left=425, top=36),
+              _ocr_button_piece("出战", left=1770, top=740)]
+    obs = battle.BattleObservation(runtime, "preparation", pieces, "战斗阶段3-1备战阶段出战", Image.new("RGB", (1920, 1080)))
+    assert battle.classify_cw_battle_page(runtime, session=build_session(tmp_path), detected_stage="preparation", observation=obs) == "battle_transition"
+
+
+def test_transition_then_combat_timeout_discards_banner_frame(tmp_path, monkeypatch):
+    from PIL import Image
+    battle = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_transition", "battle_progress"], sleep_advances_from=("battle_transition",))
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    runtime.ocr_image = lambda image, **kwargs: []
+    _patch_run_loop(monkeypatch, battle, runtime)
+    monkeypatch.setattr(battle, "classify_cw_battle_page", lambda runtime, **kwargs: runtime.state)
+    monkeypatch.setattr(battle, "_battle_screen_evidence", lambda runtime, observation: ("3-1", False))
+    result = battle.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert result["status"] == "in_progress" and result["in_battle"] is True
+    assert result.get("round") == "3-1"
+    assert result.get("stage") != "battle_transition"
+    assert "_reconcile_frame" not in result
+
+
+@pytest.mark.parametrize("text,y,blocked", [
+    ("备战席已满，请出售角色或提升等级", 525, True),
+    ("备战席已满，需要售卖备战区角色才可开启晶矿", 290, False),
+    ("备战席已满，请出售角色或提升等级", 290, False),
+])
+def test_positioned_reserve_overflow_is_distinct_from_crystal_notice(tmp_path, text, y, blocked):
+    from PIL import Image
+    battle = load_cw_battle_module()
+    runtime = FakeRuntime()
+    pieces = [_ocr_button_piece(text, left=800, top=y, width=350, height=25),
+              _ocr_button_piece("出战", left=1770, top=740)]
+    obs = battle.BattleObservation(runtime, "preparation", pieces, text, Image.new("RGB", (1920, 1080)))
+    state = battle.classify_cw_battle_page(runtime, session=build_session(tmp_path), detected_stage="preparation", observation=obs)
+    assert (state == "reserve_overflow") is blocked
+
+
+def test_reserve_overflow_blocks_before_start(tmp_path, monkeypatch):
+    from PIL import Image
+    battle = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start"])
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    runtime.ocr_image = lambda image, **kwargs: [_ocr_button_piece("备战席已满，请出售角色或提升等级", left=800, top=525, width=350, height=25)] if image.size == (1920, 1080) else []
+    _patch_run_loop(monkeypatch, battle, runtime)
+    result = battle.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert result["status"] == "blocked" and result["reason"] == "reserve_overflow"
+    assert not runtime.clicks
+
+
+def test_overflow_after_click_allows_new_attempt_when_cleared(tmp_path, monkeypatch):
+    from PIL import Image
+    battle = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start", "blocked", "battle_start", "stable_stage"])
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    def ocr(image, **kwargs):
+        if image.size != (1920, 1080):
+            return []
+        if runtime.state == "blocked":
+            return [_ocr_button_piece("备战席已满，请出售角色或提升等级", left=800, top=525, width=350, height=25)]
+        return [_ocr_button_piece("出战", left=1770, top=740)]
+    runtime.ocr_image = ocr
+    _patch_run_loop(monkeypatch, battle, runtime)
+    monkeypatch.setattr(battle, "_fail_if_battle_team_count_confirm_dialog", lambda runtime: None)
+    def click(x, y):
+        runtime.clicks.append((x, y))
+        runtime.advance()
+    runtime.click_point = click
+    first = battle.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert first["reason"] == "reserve_overflow" and first["_reconcile_frame"] is not None
+    assert not ensure_cw_state(session)["battle_resume"].get("start_pending")
+    runtime.advance()
+    second = battle.run_cw_battle(session, runtime=runtime, timeout=2)
+    assert second["status"] == "completed" and len(runtime.clicks) == 2
+
+
+def test_start_point_and_special_header_scale_to_reference(tmp_path):
+    from PIL import Image
+    scene = load_cw_battle_module()
+    runtime = FakeRuntime()
+    pieces = [_ocr_button_piece("出战", left=1180, top=490, width=80, height=24),
+              _ocr_button_piece("1-8", left=293, top=43, width=34, height=16),
+              _ocr_button_piece("32", left=960, top=43, width=26, height=16)]
+    observation = scene.BattleObservation(runtime, None, pieces, "出战1-832", Image.new("RGB", (1280, 720)))
+    assert scene._battle_start_point(observation) == (1830, 753)
+    assert scene._special_preparation_header(observation) == {"stage": "preparation", "node": "1-8", "hp": 32}
+
+
+@pytest.mark.parametrize("state", ["stable_stage", "game_over", "preparation"])
+def test_completed_stage_clears_pending_start(tmp_path, monkeypatch, state):
+    scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    ensure_cw_state(session)["battle_resume"] = {"start_pending": True, "in_battle_hint": True}
+    runtime = ScriptedBattleRuntime([state], battle_start_text="出战")
+    _patch_run_loop(monkeypatch, scene, runtime)
+    result = scene.run_cw_battle(session, runtime=runtime, timeout=1)
+    assert result["status"] == "completed"
+    assert not ensure_cw_state(session)["battle_resume"].get("start_pending")
+
+
+def test_pending_start_unknown_waits_without_click_or_claiming_combat(tmp_path, monkeypatch):
+    scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    ensure_cw_state(session)["battle_resume"] = {"start_pending": True}
+    runtime = ScriptedBattleRuntime(["unknown"])
+    _patch_run_loop(monkeypatch, scene, runtime)
+    result = scene.run_cw_battle(session, runtime=runtime, timeout=0)
+    assert result["in_battle"] is None
+    assert runtime.clicks == []
+    assert ensure_cw_state(session)["battle_resume"]["start_pending"] is True
+
+
+def test_completed_battle_stops_at_special_board_with_report_without_clicking_it(tmp_path, monkeypatch):
+    from PIL import Image
+    scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["battle_start", "battle_progress", "settle_entry", "settle_followup", "preparation"])
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    def image_ocr(image, **kwargs):
+        if runtime.state == "preparation":
+            return [_ocr_button_piece("备战阶段", left=427, top=36),
+                    _ocr_button_piece("幕后茶歇", left=1764, top=740),
+                    _ocr_button_piece("1-8", left=440, top=65, width=50, height=25)]
+        if runtime.state == "battle_start":
+            return [_ocr_button_piece("出战", left=1770, top=740)]
+        return runtime._ocr_map_for_state().get(None, [])
+    runtime.ocr_image = image_ocr
+    _patch_run_loop(monkeypatch, scene, runtime)
+    monkeypatch.setattr(scene, "_fail_if_battle_team_count_confirm_dialog", lambda runtime: None)
+    def click(x, y):
+        runtime.clicks.append((x, y))
+        if runtime.state == "battle_start":
+            runtime.advance()
+    runtime.click_point = click
+    result = scene.run_cw_battle(session, runtime=runtime, timeout=30)
+    assert result["status"] == "observed" and result["stage"] == "preparation"
+    assert result["in_battle"] is False and result["current_node"]["node"] == "1-8"
+    assert result["next_action"] == "cw.stage.read" and result["result"] == "win"
+    assert runtime.clicks == [(1830, 758), (640, 360), (640, 360)]
+
+
+@pytest.mark.parametrize("overlay", ["等级提升", "请选择投资策略"])
+def test_board_overlay_vetoes_right_hand_battle_button(tmp_path, monkeypatch, overlay):
+    from PIL import Image
+    scene = load_cw_battle_module()
+    session = build_session(tmp_path)
+    runtime = ScriptedBattleRuntime(["preparation"])
+    runtime.screenshot = lambda: Image.new("RGB", (1920, 1080))
+    runtime.ocr_image = lambda image, **kwargs: [
+        _ocr_button_piece("备战阶段", left=427, top=36),
+        _ocr_button_piece(overlay, left=900, top=194),
+        _ocr_button_piece("出战", left=1770, top=740),
+        *([_ocr_button_piece("返回备战界面", left=100, top=950)] if overlay == "请选择投资策略" else []),
+    ]
+    _patch_run_loop(monkeypatch, scene, runtime)
+    if overlay == "等级提升":
+        result = scene.run_cw_battle(session, runtime=runtime, timeout=1)
+        assert result["status"] == "observed" and result["in_battle"] is False
+    else:
+        with pytest.raises(TrailError) as error:
+            scene.run_cw_battle(session, runtime=runtime, timeout=1)
+        assert error.value.code == "CW_BATTLE_STATE_UNKNOWN"
+    assert runtime.clicks == []

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from time import sleep
 from typing import Any
 
+
 from trail.core.errors import TrailError
 from trail.scenes.cw.catalog import CwCatalog, build_cw_catalog, resolve_cw_role_id, resolve_cw_role_name, summarize_cw_field_traits
 from trail.scenes.cw.guide import complete_cw_guide_or_none
@@ -80,7 +81,7 @@ SHOP_SCAN_OPEN_SETTLE_SECONDS = 1.5
 SHOP_BUY_CONFIRM_RETRY_SECONDS = 0.5
 SHOP_BUY_CONFIRM_MAX_ATTEMPTS = 4
 SHOP_LEGACY_STAGE_FIELDS = {"level", "exp", "team_size", "role_count"}
-SHOP_ROLE_STAR_UNITS = {1: 1, 2: 3, 3: 9}
+SHOP_ROLE_STAR_UNITS = {1: 1, 2: 3, 3: 9, 4: 27}
 
 ShopScanner = Callable[[], dict[str, Any]]
 ShopSnapshotReader = Callable[[], dict[str, Any]]
@@ -160,11 +161,11 @@ def _parse_first_int(items: list[Any], *, default: int | None) -> int | None:
     return default
 
 
-def _parse_shop_items(raw_items: list[Any] | None) -> tuple[list[dict[str, Any]], bool]:
+def _parse_shop_items(raw_items: list[Any] | None, *, scan_width: int | None = None) -> tuple[list[dict[str, Any]], bool]:
     items: list[dict[str, Any]] = []
     slot_items: dict[int, dict[str, Any]] = {}
     reserve_full = False
-    slot_lane_width = _shop_scan_slot_lane_width(raw_items or [])
+    slot_lane_width = scan_width / float(len(SHOP_SLOT_POINTS)) if scan_width else _shop_scan_slot_lane_width(raw_items or [])
     for item in raw_items or []:
         text = _read_ocr_text(item).strip()
         if not text:
@@ -444,7 +445,7 @@ def _canonicalize_shop_item(
         position["slot"] = stable.get("slot")
     elif idx is not None:
         position["idx"] = idx
-    match = resolve_cw_role_name(name, catalog, position=position)
+    match = resolve_cw_role_name(name, catalog, position=position, cost=stable.get("cost") or stable.get("price"))
     if match is None:
         return stable, deepcopy(stable), []
     warnings = [match.warning] if isinstance(match.warning, dict) else []
@@ -715,7 +716,7 @@ def _role_slot_star_units(value: Any) -> int:
     return SHOP_ROLE_STAR_UNITS.get(parsed, 1)
 
 
-def _role_equivalent_count(slots_snapshot: dict[str, Any] | None, *, name: str) -> int:
+def _role_equivalent_count(slots_snapshot: dict[str, Any] | None, *, name: str, role_id: str | None = None) -> int:
     if not isinstance(slots_snapshot, dict):
         return 0
     total = 0
@@ -725,6 +726,8 @@ def _role_equivalent_count(slots_snapshot: dict[str, Any] | None, *, name: str) 
             continue
         for value in values:
             if _role_slot_name(value) == name:
+                if role_id is not None and (not isinstance(value, dict) or str(value.get("role_id")) != role_id):
+                    continue
                 total += _role_slot_star_units(value)
     return total
 
@@ -777,9 +780,10 @@ def _verified_role_purchase_delta(
     before_slots: dict[str, Any],
     after_slots: dict[str, Any],
     expect: str,
+    role_id: str | None = None,
 ) -> dict[str, Any]:
-    before_count = _role_equivalent_count(before_slots, name=expect)
-    after_count = _role_equivalent_count(after_slots, name=expect)
+    before_count = _role_equivalent_count(before_slots, name=expect, role_id=role_id)
+    after_count = _role_equivalent_count(after_slots, name=expect, role_id=role_id)
     delta = after_count - before_count
     verification = {
         "name": expect,
@@ -844,11 +848,13 @@ def build_cw_shop_opener(runtime) -> ShopAction:
     return lambda: runtime.click_point(*SHOP_OPEN_POINT)
 
 
-def _read_shop_page_snapshot(runtime, *, read_team_size: bool) -> dict[str, Any]:
+def _read_shop_page_snapshot(runtime, *, read_team_size: bool, recover_missing: bool = False,
+                             check_cancelled: Callable[[], None] = lambda: None) -> dict[str, Any]:
     _maybe_dump_shop_capture(runtime, name="scan", capture=SHOP_SCAN_REGION)
     _maybe_dump_shop_capture(runtime, name="coins", capture=SHOP_COINS_REGION)
+    shop_image = runtime.capture_image(**SHOP_SCAN_REGION, normalize=False)
     targets = [
-        BatchOcrTarget("items", runtime.capture_image(**SHOP_SCAN_REGION, normalize=False)),
+        BatchOcrTarget("items", shop_image),
         BatchOcrTarget("coins", runtime.capture_image(**SHOP_COINS_REGION, normalize=False)),
     ]
     if read_team_size:
@@ -863,7 +869,10 @@ def _read_shop_page_snapshot(runtime, *, read_team_size: bool) -> dict[str, Any]
             ]
         )
     batch_result = run_batch_ocr(runtime, targets, trace_prefix="cw_shop_batch_ocr")
-    items, reserve_full = _parse_shop_items(_batch_ocr_items(batch_result.by_key, "items"))
+    items, reserve_full = _parse_shop_items(_batch_ocr_items(batch_result.by_key, "items"), scan_width=getattr(shop_image, "width", None))
+    if recover_missing:
+        from trail.scenes.cw.shop_reconcile import recover_missing_shop_items
+        items = recover_missing_shop_items(runtime, shop_image, items, check_cancelled=check_cancelled)
     coins = _parse_first_int(_batch_ocr_items(batch_result.by_key, "coins"), default=0)
     snapshot = {
         "items": items,
@@ -885,9 +894,11 @@ def build_cw_shop_scanner(runtime) -> ShopScanner:
     return scanner
 
 
-def build_cw_shop_page_snapshot_reader(runtime, *, read_stage_status: bool = False) -> ShopSnapshotReader:
+def build_cw_shop_page_snapshot_reader(runtime, *, read_stage_status: bool = False, recover_missing: bool = False,
+                                       check_cancelled: Callable[[], None] = lambda: None) -> ShopSnapshotReader:
     def reader() -> dict[str, Any]:
-        snapshot = _read_shop_page_snapshot(runtime, read_team_size=read_stage_status)
+        snapshot = _read_shop_page_snapshot(runtime, read_team_size=read_stage_status,
+                                            recover_missing=recover_missing, check_cancelled=check_cancelled)
         return {"opened": True, "stale": False, **snapshot}
 
     return reader
@@ -974,6 +985,13 @@ def buy_cw_shop_slot(
     expected_item = _require_fresh_shop_item(cw_state, slot=slot, expect=canonical_expect, guide_config=guide_config)
     expected_role = str(expected_item.get("name") or canonical_expect)
     lv999_cost = _require_lv999_shop_item_cost(expected_item, slot=slot) if is_cw_variable_cost_role(expected_role) else None
+    role_id = None
+    catalog = _shop_catalog(guide_config)
+    if lv999_cost is None and catalog is not None and sum(role["name"] == expected_role for role in catalog.roles) > 1:
+        raw_role_id = expected_item.get("role_id")
+        if raw_role_id is None:
+            raise TrailError("SHOP_ROLE_VARIANT_UNKNOWN", f"无法确认商店第 {slot} 格的角色形态：{expected_role}")
+        role_id = str(raw_role_id)
     read_scope = preflight_read_scope or nullcontext
     before_slots = (
         _read_cw_slots_with_scope(session, reader=slots_reader, guide_config=guide_config, read_scope=read_scope).response_snapshot
@@ -998,6 +1016,7 @@ def buy_cw_shop_slot(
                     before_slots=before_slots,
                     after_slots=after_slots,
                     expect=expected_role,
+                    role_id=role_id,
                 )
             else:
                 role_verification = _verified_lv999_purchase_delta(

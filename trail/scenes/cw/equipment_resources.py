@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha1
 from io import BytesIO
 import json
@@ -52,6 +52,11 @@ class EquipmentRecipe:
     id: str | None
     name: str
     basics: tuple[EquipmentRecipeChild, ...]
+    alternatives: tuple[tuple[EquipmentRecipeChild, ...], ...] = ()
+
+
+def is_privilege_equipment(name: str, category_name: str | None) -> bool:
+    return category_name == "特权装备" or name.endswith("·特权")
 
 
 def _text_or_none(value: Any) -> str | None:
@@ -292,7 +297,7 @@ def build_cw_equipment_recipes(raw_config: Mapping[str, Any]) -> dict[str, Equip
             continue
 
         children_by_identity: dict[tuple[str, str], EquipmentRecipeChild] = {}
-        child_order: list[tuple[str, str]] = []
+        alternatives = []
         compose_list = item.get("compose_list")
         if isinstance(compose_list, list):
             for compose in compose_list:
@@ -301,6 +306,7 @@ def build_cw_equipment_recipes(raw_config: Mapping[str, Any]) -> dict[str, Equip
                 childrens = compose.get("childrens")
                 if not isinstance(childrens, list):
                     continue
+                recipe_children: dict[tuple[str, str], EquipmentRecipeChild] = {}
                 for child_item in childrens:
                     if not isinstance(child_item, Mapping):
                         continue
@@ -308,24 +314,18 @@ def build_cw_equipment_recipes(raw_config: Mapping[str, Any]) -> dict[str, Equip
                     if child is None:
                         continue
                     identity = _recipe_child_identity(child)
-                    if identity not in children_by_identity:
-                        child_order.append(identity)
-                        children_by_identity[identity] = child
-                    else:
-                        previous = children_by_identity[identity]
-                        children_by_identity[identity] = EquipmentRecipeChild(
-                            cache_key=previous.cache_key,
-                            id=previous.id,
-                            name=previous.name,
-                            kind=previous.kind,
-                            need=previous.need + 1,
-                        )
+                    for group in (recipe_children, children_by_identity):
+                        previous = group.get(identity)
+                        group[identity] = child if previous is None else replace(previous, need=previous.need + 1)
+                if recipe_children:
+                    alternatives.append(tuple(recipe_children.values()))
 
         recipes[advanced.name] = EquipmentRecipe(
             cache_key=advanced.cache_key,
             id=advanced.id,
             name=advanced.name,
-            basics=tuple(children_by_identity[key] for key in child_order),
+            basics=tuple(children_by_identity.values()),
+            alternatives=tuple(alternatives),
         )
     return recipes
 

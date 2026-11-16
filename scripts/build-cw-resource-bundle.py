@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -12,7 +13,9 @@ from typing import Any
 from PIL import Image
 
 from trail.core.errors import TrailError
+from trail.scenes.cw.catalog import clean_cw_trait_entry, merge_cw_trait_entries
 from trail.scenes.cw.equipment_resources import (
+    EquipmentCatalogEntry,
     EQUIPMENT_ICON_MAX_BYTES,
     build_cw_equipment_catalog,
     equipment_bundle_manifest_entry,
@@ -21,6 +24,7 @@ from trail.scenes.cw.equipment_resources import (
 )
 from trail.scenes.cw.guide import download_cw_guide_config_data, normalize_cw_guide_config_data
 from trail.scenes.cw.role_resources import (
+    RoleCatalogEntry,
     ROLE_ICON_MAX_BYTES,
     build_cw_role_catalog,
     download_role_icon_bytes,
@@ -48,6 +52,7 @@ ROLE_TARGET_SIZE = (103, 120)
 ROLE_FEATURE_SIZE = (64, 64)
 ROLE_AVATAR_ROI = [5, 4, 98, 108]
 ROLE_HIST_BINS = (16, 16, 16)
+TARGET_SEASON = ("4.7", "2", "1")
 
 
 def _is_path_link(path: Path) -> bool:
@@ -227,6 +232,50 @@ def _has_enriched_trait_layers(config: Mapping[str, Any]) -> bool:
     return any(isinstance(item, dict) and item.get("layers") for item in _iter_dicts(config.get("traits")))
 
 
+def _read_snapshot_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def load_cw_snapshot(snapshot_root: Path) -> tuple[dict, dict, Any]:
+    root = snapshot_root.resolve()
+    source = root / "来源"
+    metadata = _read_snapshot_json(source / "版本信息.json")
+    config_path = source / "模拟器原始配置.json"
+    if sha256(config_path.read_bytes()).hexdigest() != metadata["config_sha256"]:
+        raise ValueError("货币战争原始配置的 SHA-256 与版本信息不符")
+    raw_config = _read_snapshot_json(config_path)["data"]
+    season = tuple(str(raw_config.get(key)) for key in ("rpg_game_big_version", "season_id", "sub_season_id"))
+    declared = tuple(str(metadata.get(key)) for key in ("game_version", "season_id", "sub_season_id"))
+    if season != TARGET_SEASON or season != declared:
+        raise ValueError(f"需要 4.7 第 2 赛季第 1 期快照，实际为 {season}")
+
+    layer_evidence = _read_snapshot_json(source / "羁绊分层依据.json")
+    traits = []
+    for trait in raw_config["trait_info_list"]:
+        cleaned = clean_cw_trait_entry(trait)
+        if cleaned is None:
+            continue
+        evidence = layer_evidence.get(str(cleaned["id"]), {})
+        extra = clean_cw_trait_entry({"name": cleaned["name"], **evidence})
+        traits.append(merge_cw_trait_entries(cleaned, extra) if extra is not None else cleaned)
+    icons = {entry["source"]: entry for entry in _read_snapshot_json(source / "图片清单.json")["files"]}
+
+    def fetch_icon(url: str, *, timeout: float, max_bytes: int) -> bytes:
+        entry = icons.get(url)
+        if entry is None:
+            raise ValueError(f"图片清单缺少素材：{url}")
+        path = (root / entry["file"]).resolve()
+        if not path.is_relative_to(root):
+            raise ValueError(f"素材路径超出快照目录：{entry['file']}")
+        with path.open("rb") as stream:
+            data = stream.read(max_bytes + 1)
+        if len(data) > max_bytes or sha256(data).hexdigest() != entry["sha256"]:
+            raise ValueError(f"素材大小或 SHA-256 校验失败：{path}")
+        return data
+
+    return raw_config, {"traits": traits, "captured_on": metadata["captured_on"], "config_sha256": metadata["config_sha256"]}, fetch_icon
+
+
 def _source_manifest(raw_config: Mapping[str, Any], *, big_version: str) -> dict[str, Any]:
     return {
         "bundle_schema_version": CW_RESOURCE_BUNDLE_SCHEMA_VERSION,
@@ -256,11 +305,15 @@ def _replace_generated_bundle(output_root: Path, target_root: Path, staging_pare
     _ensure_generated_child(output_root, staging_parent)
     _ensure_generated_child(output_root, staging_root)
     staging_parent_resolved = staging_parent.resolve()
-    for child in output_root.iterdir():
-        if child.resolve() == staging_parent_resolved:
-            continue
-        if child.name == ".gitkeep":
-            continue
+    old_children = [
+        child for child in output_root.iterdir()
+        if child.resolve() != staging_parent_resolved and child.name != ".gitkeep"
+    ]
+    for child in old_children:
+        _ensure_generated_child(output_root, child)
+        if _is_path_link(child):
+            raise TrailError("CW_RESOURCE_BUNDLE_INVALID", f"cw generated resource must not be a link: {child}")
+    for child in old_children:
         if child.is_dir():
             shutil.rmtree(child)
         else:
@@ -277,8 +330,13 @@ def build_cw_resource_bundle(
     config_normalizer=normalize_cw_guide_config_data,
     icon_fetcher=download_role_icon_bytes,
     timeout: int = 10,
+    snapshot_root: Path | None = None,
 ) -> dict:
-    raw_config = dict(raw_config_fetcher(timeout=timeout))
+    snapshot = None
+    if snapshot_root is None:
+        raw_config = dict(raw_config_fetcher(timeout=timeout))
+    else:
+        raw_config, snapshot, icon_fetcher = load_cw_snapshot(snapshot_root)
     big_version = str(raw_config.get("rpg_game_big_version") or "")
     if not big_version:
         raise TrailError("CW_RESOURCE_BUNDLE_INVALID", "cw resource bundle config missing rpg_game_big_version")
@@ -296,12 +354,12 @@ def build_cw_resource_bundle(
             workspace_root=cache_dir,
             enrich_traits=False,
         )
-        guide_config_enriched = config_normalizer(
-            raw_config,
-            timeout=timeout,
-            workspace_root=cache_dir,
-            enrich_traits=True,
-        )
+        if snapshot is None:
+            guide_config_enriched = config_normalizer(
+                raw_config, timeout=timeout, workspace_root=cache_dir, enrich_traits=True,
+            )
+        else:
+            guide_config_enriched = {**guide_config, "traits": snapshot["traits"]}
     if not _has_enriched_trait_layers(guide_config_enriched):
         raise TrailError("CW_RESOURCE_BUNDLE_INVALID", "cw enriched traits missing layer data")
 
@@ -381,7 +439,11 @@ def build_cw_resource_bundle(
         )
         write_bundle_json(staging_root / "roles" / "features.json", _build_precomputed_role_features(role_icon_pairs))
         write_bundle_json(staging_root / "indexes.json", _indexes(dict(guide_config_enriched), equipment_items))
-        write_bundle_manifest(staging_root, source_manifest=_source_manifest(raw_config, big_version=big_version), source_kind="build")
+        manifest = _source_manifest(raw_config, big_version=big_version)
+        if snapshot is not None:
+            manifest["captured_on"] = snapshot["captured_on"]
+            manifest["config_sha256"] = snapshot["config_sha256"]
+        write_bundle_manifest(staging_root, source_manifest=manifest, source_kind="build")
         load_cw_resource_bundle_from_path(staging_root)
         count = len(equipment_items)
         _replace_generated_bundle(output_root, bundle_root, staging_parent, staging_root)
@@ -390,7 +452,19 @@ def build_cw_resource_bundle(
 
 
 def main() -> None:
-    result = build_cw_resource_bundle()
+    parser = argparse.ArgumentParser(description="构建或校验货币战争 4.7 第 2 赛季第 1 期资源包")
+    parser.add_argument("--snapshot-root", type=Path, help="本地 4.7 正式服快照目录")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    args = parser.parse_args()
+    if args.snapshot_root is not None:
+        result = build_cw_resource_bundle(output_root=args.output_root, snapshot_root=args.snapshot_root)
+    else:
+        bundle_root = args.output_root / TARGET_SEASON[0]
+        bundle = load_cw_resource_bundle_from_path(bundle_root)
+        version = (bundle.big_version, str(bundle.manifest["season_id"]), str(bundle.manifest["sub_season_id"]))
+        if version != TARGET_SEASON:
+            parser.error("资源包版本不匹配。请用 --snapshot-root 重新构建")
+        result = {"bundle_root": str(bundle_root), "big_version": bundle.big_version, "count": len(bundle.equipment_manifest["items"])}
     print(json.dumps(result, ensure_ascii=False))
 
 

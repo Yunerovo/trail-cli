@@ -20,7 +20,7 @@ description: 当上游已经用 `cw start` 成功进入货币战争投资环境�
 
 ## How To Act On The Portal Page
 
-- 先用 `portal detect` 看当前可见环境卡片；需要刷新候选时用 `portal refresh`；确认整把不要时用 `portal restart`；决定继续当前环境时用 `portal select --card-idx ...`。
+- 先用 `portal detect` 看当前可见环境卡片；需要刷新候选时用 `portal refresh`；确认整把不要时用 `portal restart`；决定继续当前环境时用 `portal select --card-idx ...`。Agent 自主运营使用 `--no-guide` 只选环境，返回 `status=observed` 和当前阶段。`stage=voyage_companion` 时用 `trail cw stage read --session <id>` 读取奇遇画面。
 - `待收集=1` 通常表示选择这个投资环境更有利于完成当前收集奖励；除非它和已知目标明显冲突，否则不要轻易忽略。`cw.start` / `cw.portal.*` 默认输出不自动附加动态攻略摘要；卡片默认不自带攻略热度、版本或互动数据，需要这些动态攻略信息时，先显式调用 `guide.list.cw` / `guide.fetch.cw`，或只依赖当前已选攻略。
 - 环境页里的判断要先综合每张卡自带的环境说明、`待收集=1` 和当前已选攻略约束；只有已经显式获取动态攻略列表/详情时，才把推荐攻略、热度、版本和互动数据纳入 refresh/select 判断。
 - 如果上游已经定了 `环境优先`，就继续按环境走，比较当前环境是否服务目标，再决定 refresh、restart 还是 select。
@@ -35,6 +35,7 @@ description: 当上游已经用 `cw start` 成功进入货币战争投资环境�
 - 如果未确定攻略，但投资环境页已经出来，就切到 `trail-cw-guide` 的无人值守模式；无人值守不能假设 portal 卡片自带热度、版本或互动数据，需要这些动态信号时先显式调用 `guide.list.cw` / `guide.fetch.cw`。
 - 如果用户明确说“按当前环境直接定攻略”，也切到 `trail-cw-guide`，不要在这里继续追问。
 - 选定攻略后，回到 portal 流程，用 `portal select --card-idx ...` 选中对应投资环境，再继续后续流程。
+- 确认离开投资环境页后，CLI 保存实际选定的环境与效果。新开一局生成新的 `run_id`。Agent 自行运营时用 `portal select --no-guide`。
 - 选中环境并成功进入普通备战后，后续不再由 portal 继续 owner，而是消费 `cw.portal.select` 已带回的备战事实，并按 `cw.portal.select -> trail-cw-prep` 的 handoff 转入普通备战阶段。
 
 ## Reference Map

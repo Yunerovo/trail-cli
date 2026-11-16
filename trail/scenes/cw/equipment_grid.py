@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Iterable
 
+import numpy as np
 from PIL import Image, ImageStat
 
 from trail.core.errors import TrailError
@@ -40,6 +41,9 @@ class EquipmentCrop:
 
 
 DEFAULT_EQUIPMENT_GRID_PROFILE = EquipmentGridProfile()
+SEASON_TWO_EQUIPMENT_GRID_PROFILE = EquipmentGridProfile(
+    crop_width=74, crop_height=74, col1_left=1819.0, row_origin_top=214.0,
+)
 DARK_CORNER_SIZE = 12
 DARK_CORNER_LUMA_THRESHOLD = 55.0
 MIN_DARK_CORNERS = 2
@@ -174,6 +178,35 @@ def crop_has_equipment_slot_markers(image: Image.Image) -> bool:
         if _light_ratio(rgb.crop(box), LIGHT_FRAME_LUMA_THRESHOLD) >= LIGHT_FRAME_MIN_RATIO
     )
     return light_edges >= MIN_LIGHT_FRAME_EDGES
+
+
+def crop_has_season_two_equipment_frame(image: Image.Image) -> bool:
+    rgb = np.asarray(image.convert("RGB"), dtype=np.int16)
+    interior = rgb[7:-7, 7:-7]
+    if float((interior.min(axis=2) > 205).mean()) > 0.45:
+        return False
+    light_border = (rgb.min(axis=2) > 88) & (np.ptp(rgb, axis=2) < 48)
+    # Equipment occupies a square with long, light edges. The bare board
+    # often has diagonal highlights and dark corners at the same coordinates.
+    red, green, blue = np.moveaxis(rgb, -1, 0)
+    gold_border = (red > 160) & (green > 125) & (red >= green + 8) & (green >= blue + 16)
+    return _equipment_border_edge_count(light_border) >= 3 or _equipment_border_edge_count(gold_border) >= 3
+
+
+def _equipment_border_edge_count(mask: np.ndarray) -> int:
+    bands = (
+        mask[:7, 12:-12],
+        mask[-7:, 12:-12],
+        mask[12:-12, :7].T,
+        mask[12:-12, -7:].T,
+    )
+    return sum(float(band.mean(axis=1).max()) >= 0.70 for band in bands)
+
+
+def season_two_shop_overlay(image: Image.Image) -> bool:
+    # The shop's white refresh button remains visible when the lineup shrinks.
+    button = np.asarray(image.crop((1553, 453, 1689, 580)).convert("RGB"))
+    return float((button.min(axis=2) >= 215).mean()) >= 0.6
 
 
 def _crop_exact(source: Image.Image, *, left: int, top: int, width: int, height: int) -> Image.Image:

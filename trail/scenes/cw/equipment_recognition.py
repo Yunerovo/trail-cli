@@ -7,7 +7,7 @@ from typing import Protocol
 
 from PIL import Image, ImageChops, ImageStat
 
-from trail.scenes.cw.equipment_resources import EquipmentCatalogEntry
+from trail.scenes.cw.equipment_resources import EquipmentCatalogEntry, is_privilege_equipment
 
 
 FEATURE_SIZE = (32, 32)
@@ -51,7 +51,7 @@ class _IndexedIcon:
 
 
 def _is_privilege_equipment_entry(entry: EquipmentCatalogEntry) -> bool:
-    return entry.category_name == "特权装备" or entry.name.endswith("·特权")
+    return is_privilege_equipment(entry.name, entry.category_name)
 
 
 def _normalized_rgba(image: Image.Image, size: tuple[int, int]) -> Image.Image:

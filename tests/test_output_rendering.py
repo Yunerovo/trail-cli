@@ -5816,6 +5816,36 @@ def test_render_output_verbose_includes_ocr_retry_high_zero_and_retry_reason_non
     assert all(line not in rendered for line in LEGACY_OCR_CONTEXT_DEBUG_LINES)
 
 
+def test_battle_output_keeps_current_node_and_compact_run_facts_together():
+    output = render_output("cw.battle.run", {
+        "ok": True,
+        "data": {
+            "status": "completed",
+            "stage": "preparation",
+            "battle_report": {"progress_pct": 88, "minimum_progress_met": True},
+            "current_node": {"stage": "preparation", "node": "3-2", "hp": 40},
+            "run_facts": {
+                "run_id": "current-run",
+                "negative_affixes": ["坠入陷阱"],
+                "investment_environment": "击破概念股",
+                "investment_strategies": [{"name": "回蓝", "node": "1-2"}],
+                "investment_history_incomplete": False,
+                "plot_armor": {
+                    "status": "observed",
+                    "reselect_remaining": 0,
+                    "cards": [{"slot": 1, "name": "遇强则强", "role": "海瑟音", "status": "active"}],
+                },
+            },
+        },
+    })
+
+    assert "progress_pct=88 minimum_progress_met=1" in output
+    assert "current_node=3-2 current_hp=40" in output
+    assert "负面词缀=坠入陷阱 投资环境=击破概念股 投资策略=1-2/回蓝" in output
+    assert "主角光环核对=observed 剩余重选=0" in output
+    assert "item kind=plot_armor idx=1 name=遇强则强 role=海瑟音 status=active" in output
+
+
 def test_render_output_state_dump_tolerates_non_mapping_data():
     payload = {
         "ok": True,
@@ -6196,13 +6226,18 @@ def test_render_output_daemon_request_status_keeps_session_fact_for_reconcile_ch
     ]
 
 
-@pytest.mark.parametrize("command", ["start.run", "cw.battle.run", "cw.enter"])
-def test_render_output_async_running_short_circuits_handoff(command: str):
+@pytest.mark.parametrize(("command", "next_action"), [
+    ("start.run", "start.run"),
+    ("cw.battle.run", "daemon.request_status"),
+    ("cw.shop.buy_exp_to_level", "daemon.request_status"),
+    ("cw.enter", "cw.enter"),
+])
+def test_render_output_async_running_short_circuits_handoff(command: str, next_action: str):
     payload = command_success(data={"state": "running", "request": "job-1", "waited": 100}, screenshot=None)
 
     assert render_output(command, payload).splitlines() == [
         f"ok {command} state=running request=job-1 waited=100",
-        f"info next_action={command} request=job-1",
+        f"info next_action={next_action} request=job-1",
     ]
 
 
@@ -6276,7 +6311,7 @@ def test_render_output_request_status_includes_async_fields_and_next_action():
 
     assert render_output("daemon.request_status", payload).splitlines() == [
         "ok daemon.request_status request=job-1 command=cw.battle.run session=sess-1 state=running final=0 final_state=null last_visible_stage=executing side_effect_stage=none tainted=0",
-        "info next_action=cw.battle.run request=job-1 session=sess-1",
+        "info next_action=daemon.request_status request=job-1 session=sess-1",
     ]
 
 
@@ -6300,7 +6335,7 @@ def test_render_output_request_status_for_call_record_uses_job_id_in_next_action
 
     assert render_output("daemon.request_status", payload).splitlines() == [
         "ok daemon.request_status request=call-1 job=job-1 command=cw.battle.run session=sess-1 state=running final=0 final_state=null last_visible_stage=executing side_effect_stage=none tainted=0",
-        "info next_action=cw.battle.run request=job-1 session=sess-1",
+        "info next_action=daemon.request_status request=job-1 session=sess-1",
     ]
 
 
@@ -6551,3 +6586,10 @@ def test_cli_rejects_invalid_format_option():
     with pytest.raises(ValueError):
         OutputFormat("json")
 
+
+
+@pytest.mark.parametrize("value,expected", [(None, False), (False, True)])
+def test_battle_unknown_in_battle_is_not_rendered_as_false(value, expected):
+    payload = {"ok": True, "data": {"status": "in_progress", "stale": True, "in_battle": value}}
+    first = render_output("cw.battle.run", payload).splitlines()[0]
+    assert ("in_battle=0" in first) is expected

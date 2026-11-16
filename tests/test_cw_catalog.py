@@ -150,6 +150,27 @@ def test_summarize_field_traits_uses_enriched_layers_without_inference() -> None
     assert "缺层羁绊" not in by_trait
 
 
+def test_season_two_traits_use_exact_count_and_star_count() -> None:
+    catalog = build_cw_catalog({
+        "traits": [
+            {"id": "101102", "name": "少女乐队", "layers": [{"layer": 1}, {"layer": 4}]},
+            {"id": "100602", "name": "千星商会", "layers": [{"layer": 1}, {"layer": 2}]},
+        ]
+    })
+    front = [{"traits": ["少女乐队", "千星商会"], "star": 3}, {"traits": ["少女乐队"]}]
+    back = [{"traits": ["千星商会"], "star": 2}, {"traits": ["千星商会"], "star": 4}]
+
+    partial = {entry["trait"]: entry for entry in summarize_cw_field_traits(front=front, back=back, catalog=catalog)}
+    assert partial["少女乐队"]["active_tiers"] == []
+    assert partial["千星商会"]["active_tier"] == 1
+    assert partial["千星商会"]["owned_roles"] == 3
+    assert partial["千星商会"]["contributing_roles"] == 1
+
+    back.extend([{"traits": ["少女乐队"]}, {"traits": ["少女乐队"]}])
+    complete = {entry["trait"]: entry for entry in summarize_cw_field_traits(front=front, back=back, catalog=catalog)}
+    assert complete["少女乐队"]["active_tiers"] == [4]
+
+
 def test_catalog_helpers_ignore_invalid_collection_shapes_and_non_string_ocr() -> None:
     empty = build_cw_catalog({"traits": "bad", "roles": "bad"})
     assert empty.traits == []

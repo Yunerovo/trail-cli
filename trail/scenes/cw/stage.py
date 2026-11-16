@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
+from io import BytesIO
 import re
 from time import monotonic, sleep
 from typing import Any
+
+from PIL import Image
 
 from trail.core.errors import TrailError
 from trail.runtime.batch_locate import BatchLocateTarget, run_batch_locate
@@ -29,6 +32,17 @@ STAGE_RESOURCE_ALIASES: tuple[tuple[str, str], ...] = (
 
 SETTLE_OCR_KEYWORDS: tuple[str, ...] = ("继续挑战", "挑战成功", "挑战失败")
 PREPARATION_OCR_KEYWORDS: tuple[str, ...] = ("备战阶段", "出战")
+SEASON_TWO_DECISION_HEADINGS = {
+    "奇遇伙伴": "voyage_companion",
+    "本局将要邂逅的奇遇伙伴": "voyage_companion",
+    "选择主角": "plot_armor",
+    "选择主角光环": "plot_armor",
+    "选择一个角色获得主角光环": "plot_armor",
+    "主角光环与奇遇详情": "plot_armor_details",
+    "简易武装箱": "weapon_box",
+    "选择奇美拉": "chimera_pick",
+    "请选择奇美拉": "chimera_pick",
+}
 STAGE_WAIT_INTERVAL_SECONDS = 0.5
 CW_STATUS_LEVEL_REGION = {"from_x": 220, "from_y": 880, "to_x": 360, "to_y": 950}
 CW_STATUS_EXP_REGION = {"from_x": 256, "from_y": 943, "to_x": 325, "to_y": 973}
@@ -340,12 +354,7 @@ def _detect_cw_stage_from_ocr(runtime) -> str | None:
         return None
 
     pieces = ocr() or []
-    text = "".join(_read_ocr_piece(piece).strip() for piece in pieces)
-    if any(keyword in text for keyword in PREPARATION_OCR_KEYWORDS):
-        return "preparation"
-    if any(keyword in text for keyword in SETTLE_OCR_KEYWORDS):
-        return "settle"
-    return None
+    return _stage_from_ocr_pieces(pieces)
 
 
 def _detect_cw_stage_from_ocr_image(runtime, image) -> str | None:
@@ -354,12 +363,101 @@ def _detect_cw_stage_from_ocr_image(runtime, image) -> str | None:
         return None
 
     pieces = ocr_image(image, ocr=OcrRequestConfig(ocr_mode="fast", retry_high="auto")) or []
+    return _stage_from_ocr_pieces(pieces)
+
+
+def _season_two_decision_stage(pieces: list[Any], *, battle_start_found: bool = False) -> str | None:
+    headings = {_normalized_ocr_text([piece]) for piece in pieces}
+    for heading, value in SEASON_TWO_DECISION_HEADINGS.items():
+        if heading in headings and heading != "选择主角":
+            return value
+    if any(("重新选择主角和光环" in heading and "重选次数" in heading) or "是否替换该角色原有光环" in heading
+           for heading in headings):
+        return "plot_armor"
+    if any("中断挑战并保存当前进度" in heading for heading in headings):
+        return "confirm_leave"
+    if any("使其成为巡海游侠" in heading for heading in headings):
+        return "ranger_pick"
+    if "返回备战界面" in headings:
+        for heading, value in (
+            ("补给阶段", "replenish"), ("遭遇节点", "encounter"), ("请选择投资策略", "invest"),
+        ):
+            if heading in headings:
+                return value
+    if "选择主角" in headings:
+        choices = [piece for piece in pieces if _normalized_ocr_text([piece]) == "选择主角"]
+        is_board_button = ("备战阶段" in headings or battle_start_found) and all(
+            (box := _read_ocr_box(piece)) is not None and box[0] >= 1700 for piece in choices
+        )
+        if not is_board_button:
+            return "plot_armor"
+    return None
+
+
+def _stage_from_ocr_pieces(pieces: list[Any]) -> str | None:
+    if stage := _season_two_decision_stage(pieces):
+        return stage
+    if _is_layer_transition_from_ocr(pieces):
+        return "layer_transition"
+    if _is_true_boss_preview_from_ocr(pieces):
+        return "boss_preview"
     text = "".join(_read_ocr_piece(piece).strip() for piece in pieces)
     if any(keyword in text for keyword in PREPARATION_OCR_KEYWORDS):
         return "preparation"
     if any(keyword in text for keyword in SETTLE_OCR_KEYWORDS):
         return "settle"
     return None
+
+
+def read_cw_stage_text(runtime, *, ocr: OcrRequestConfig | None = None, image=None) -> dict[str, Any]:
+    if image is not None:
+        pieces = runtime.ocr_image(image, ocr=ocr or OcrRequestConfig(lang="ch")) or []
+    else:
+        pieces = (runtime.ocr() if ocr is None else runtime.ocr(ocr=ocr)) or []
+    entries = []
+    for piece in pieces:
+        text = _read_ocr_piece(piece).strip()
+        if text:
+            entries.append({"text": text, "bounds": _read_ocr_box(piece)})
+    reading = {"value": _stage_from_ocr_pieces(pieces), "entries": entries}
+    # Full-page OCR can miss the small node header. Retry only this actual frame's ROI.
+    if (image is not None and isinstance(image, Image.Image) and reading["value"] == "preparation"
+            and project_cw_preparation_header(reading)["node"] is None):
+        crop = image.crop((405, 28, 510, 104)).resize((315, 228), Image.Resampling.LANCZOS)
+        for piece in runtime.ocr_image(crop, ocr=OcrRequestConfig(lang="ch", ocr_mode="high")) or []:
+            text = _read_ocr_piece(piece).strip()
+            box = _read_ocr_box(piece)
+            if box is not None and re.fullmatch(r"[1-3]-[1-9]\d?", text):
+                entries.append({"text": text, "bounds": (405 + box[0] / 3, 28 + box[1] / 3,
+                                                         405 + box[2] / 3, 28 + box[3] / 3)})
+    return reading
+
+
+def read_cw_preparation_header(runtime) -> dict[str, Any]:
+    return project_cw_preparation_header(read_cw_stage_text(runtime))
+
+
+def project_cw_preparation_header(reading: dict[str, Any]) -> dict[str, Any]:
+    header: dict[str, Any] = {"stage": reading["value"] or "unknown", "node": None, "hp": None}
+    if header["stage"] not in {"preparation", "chimera_pick", "ranger_pick", "weapon_box", "plot_armor", "replenish", "invest"}:
+        return header
+    shifted_header = header["stage"] in {"chimera_pick", "ranger_pick"}
+    node_x = (280, 365) if shifted_header else (405, 510)
+    node_y = (85, 135) if shifted_header else (58, 105)
+    node_candidates = set()
+    for entry in reading["entries"]:
+        if entry["bounds"] is None:
+            continue
+        left, top, right, bottom = entry["bounds"]
+        x, y = (left + right) / 2, (top + bottom) / 2
+        text = entry["text"]
+        if node_x[0] <= x <= node_x[1] and node_y[0] <= y <= node_y[1] and re.fullmatch(r"[1-3]-[1-9]\d?", text):
+            node_candidates.add(text)
+        if 1420 <= x <= 1500 and 58 <= y <= 105 and re.fullmatch(r"100|[1-9]?\d", text):
+            header["hp"] = int(text)
+    if len(node_candidates) == 1:
+        header["node"] = next(iter(node_candidates))
+    return header
 
 
 def _normalized_ocr_text(items: list[Any]) -> str:
@@ -373,7 +471,12 @@ def _is_layer_transition_from_ocr(items: list[Any]) -> bool:
 
 
 def _is_true_boss_preview_from_ocr(items: list[Any]) -> bool:
-    return "本场对局首领" in _normalized_ocr_text(items)
+    return "本场对局首领" in re.sub(r"[.·。]", "", _normalized_ocr_text(items))
+
+
+def _is_season_two_opening_overview(items: list[Any]) -> bool:
+    text = _normalized_ocr_text(items)
+    return _is_true_boss_preview_from_ocr(items) and "本局奇遇" in text and "下一步" in text
 
 
 def _read_blank_continue_ocr(runtime, image) -> list[Any]:
@@ -412,11 +515,33 @@ def build_cw_stage_detector(runtime):
         template=str(resolve_scene_asset("cw", "action.battle_start")),
     )
 
-    def detector() -> str | None:
-        screenshot = getattr(runtime, "screenshot", None)
-        if not callable(screenshot):
-            return None
-        shared_image = runtime.screenshot()
+    def detector(*, image=None) -> str | None:
+        shared_image = image
+        if shared_image is None:
+            screenshot = getattr(runtime, "screenshot", None)
+            if not callable(screenshot):
+                return None
+            shared_image = screenshot()
+
+        # Use the same captured frame for the 4.7 shop overlay and OCR. A bright
+        # image alone is insufficient: require an actual shop control as well.
+        from trail.scenes.cw.equipment_grid import season_two_shop_overlay
+        try:
+            overlay_image = (Image.open(BytesIO(shared_image)).convert("RGB") if isinstance(shared_image, (bytes, bytearray))
+                             else shared_image.convert("RGB") if isinstance(shared_image, Image.Image) else None)
+            if overlay_image is not None and overlay_image.size != (1920, 1080):
+                overlay_image = overlay_image.resize((1920, 1080), Image.Resampling.BILINEAR)
+            overlay = (overlay_image is not None and any(high - low > 20 for low, high in overlay_image.getextrema())
+                       and season_two_shop_overlay(overlay_image))
+        except (OSError, ValueError):
+            overlay = False
+        if overlay:
+            pieces = _read_blank_continue_ocr(runtime, shared_image)
+            if stage := _season_two_decision_stage(pieces, battle_start_found=True):
+                return stage
+            text = _normalized_ocr_text(pieces)
+            if "刷新" in text or "收起" in text:
+                return "shop"
 
         blank_continue_result = run_batch_locate(
             runtime,
@@ -425,6 +550,11 @@ def build_cw_stage_detector(runtime):
             trace_prefix="cw_stage_blank_continue_locate",
         ).by_key[blank_continue_target.key]
         if blank_continue_result.found:
+            ocr_items = _read_blank_continue_ocr(runtime, shared_image)
+            if stage := _season_two_decision_stage(ocr_items):
+                return stage
+            if _is_season_two_opening_overview(ocr_items):
+                return "boss_preview"
             conflict_result = run_batch_locate(
                 runtime,
                 (blank_continue_conflict_target,),
@@ -433,7 +563,6 @@ def build_cw_stage_detector(runtime):
             ).by_key[blank_continue_conflict_target.key]
             if not conflict_result.found:
                 return "layer_transition"
-            ocr_items = _read_blank_continue_ocr(runtime, shared_image)
             if _is_true_boss_preview_from_ocr(ocr_items):
                 return "boss_preview"
             if _is_layer_transition_from_ocr(ocr_items):
@@ -446,7 +575,7 @@ def build_cw_stage_detector(runtime):
             trace_prefix="cw_stage_battle_start_locate",
         ).by_key[battle_start_target.key]
         if battle_start_result.found:
-            return "preparation"
+            return _season_two_decision_stage(_read_blank_continue_ocr(runtime, shared_image), battle_start_found=True) or "preparation"
 
         locate_result = run_batch_locate(
             runtime,
@@ -460,7 +589,10 @@ def build_cw_stage_detector(runtime):
                 continue
             values = tuple(target.key)
             if values == ("settle",):
-                if _is_true_boss_preview_from_ocr(_read_blank_continue_ocr(runtime, shared_image)):
+                ocr_items = _read_blank_continue_ocr(runtime, shared_image)
+                if stage := _season_two_decision_stage(ocr_items):
+                    return stage
+                if _is_true_boss_preview_from_ocr(ocr_items):
                     return "boss_preview"
                 return "settle"
             if len(values) == 1:

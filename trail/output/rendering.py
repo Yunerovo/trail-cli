@@ -23,7 +23,11 @@ class _OutputOptions(TypedDict):
 
 
 _OUTPUT_OPTIONS: _OutputOptions = {"format": OutputFormat.TEXT, "verbose": False}
-YAML_ALLOWLIST = {"daemon.status", "state.dump", "guide.fetch.cw", "guide.config.cw", "cw.equipment.read"}
+YAML_ALLOWLIST = {
+    "daemon.status", "state.dump", "guide.fetch.cw", "guide.config.cw",
+    "cw.equipment.read", "cw.stage.opening", "cw.shop.plan_exp", "cw.battle.run", "cw.battle.replay",
+}
+CW_REQUEST_LOOKUP_COMMANDS = {"cw.battle.run", "cw.shop.buy_exp_to_level"}
 
 
 def _bundled_workflow_handoffs_path() -> Path:
@@ -833,6 +837,86 @@ def _render_cw_stage(command: str, payload: dict[str, Any]) -> list[str]:
     )
 
 
+def _render_cw_stage_read(command: str, payload: dict[str, Any]) -> list[str]:
+    data = _as_dict(payload.get("data"))
+    entries = [entry for entry in _as_list(data.get("entries")) if isinstance(entry, dict)]
+    facts = [("stage", data.get("value") or "unknown"), ("count", len(entries))]
+    if command == "cw.replenish.refresh":
+        facts.append(("refresh_remaining", data.get("refresh_remaining")))
+    if command == "cw.event.drag_aura_role":
+        facts.extend((("source", data.get("source")), ("verified", data.get("verified"))))
+    summary = _format_fact_sequence(*facts)
+    lines = [f"ok {command} {summary}"]
+    _append_success_capture_block(lines, payload)
+    _append_cw_stage_entries(lines, entries)
+    _append_cw_run_facts(lines, data)
+    _append_warnings(lines, payload)
+    _append_references(lines, payload)
+    return lines
+
+
+def _append_cw_stage_entries(lines: list[str], entries: list[Any]) -> None:
+    for idx, entry in enumerate(entries, start=1):
+        bounds = entry.get("bounds")
+        box = None
+        if isinstance(bounds, (list, tuple)) and len(bounds) == 4:
+            left, top, right, bottom = map(round, bounds)
+            box = f"{left},{top},{right - left},{bottom - top}"
+        _append_fact_line(lines, "text", ("idx", idx), ("text", entry.get("text")), ("box", box))
+
+
+def _render_cw_stage_opening(command: str, payload: dict[str, Any]) -> list[str]:
+    data = _as_dict(payload.get("data"))
+    bosses = _as_list(data.get("bosses"))
+    affixes = _as_list(data.get("affixes"))
+    summary = _format_fact_sequence(
+        ("companion", data.get("companion") or "unknown"),
+        ("enemy_difficulty", data.get("enemy_difficulty")),
+        ("bosses", len(bosses)), ("affixes", len(affixes)),
+        ("affixes_status", data.get("affixes_status")),
+    )
+    lines = [f"ok {command} {summary}"]
+    _append_success_capture_block(lines, payload)
+    for boss in bosses:
+        _append_fact_line(lines, "item", ("plane", boss.get("plane")), ("faction", boss.get("faction")), ("boss", boss.get("name") or "unknown"))
+    for affix in affixes:
+        _append_fact_line(lines, "item", ("affix", affix.get("name")), ("detail", affix.get("description") or "unknown"),
+                          ("score", affix.get("score")), ("uncertain", affix.get("uncertain")))
+    for row in _as_list(data.get("enemy_plane_stats")):
+        _append_fact_line(lines, "info", *((key, value) for key, value in row.items()))
+    for effect in _as_list(data.get("rank_effects")):
+        _append_fact_line(lines, "info", ("rank_effect", effect))
+    _append_warnings(lines, payload)
+    return lines
+
+
+def _append_cw_run_facts(lines: list[str], data: dict[str, Any]) -> None:
+    facts = _as_dict(data.get("run_facts"))
+    if not facts:
+        return
+    affixes = facts.get("negative_affixes")
+    strategies = _as_list(facts.get("investment_strategies"))
+    armor = _as_dict(facts.get("plot_armor"))
+    _append_fact_line(
+        lines, "info", ("run_id", facts.get("run_id")),
+        ("负面词缀", "unknown" if affixes is None else "|".join(affixes) or "none"),
+        ("投资环境", facts.get("investment_environment") or "unknown"),
+        ("投资策略", "|".join(
+            f"{row['node']}/{row['name'] or 'unknown'}" if row.get("node") else row["name"] or "unknown"
+            for row in strategies
+        ) or "none_recorded"),
+        ("投资记录可能不全", facts.get("investment_history_incomplete")),
+        ("主角光环核对", armor.get("status")),
+        ("剩余重选", armor.get("reselect_remaining") if armor.get("reselect_remaining") is not None else "unknown"),
+    )
+    if facts.get("negative_affixes_status") == "partial":
+        _append_fact_line(lines, "info", ("已核对词缀", "|".join(_as_list(facts.get("negative_affixes_observed")))))
+    for card in _as_list(armor.get("cards")):
+        _append_fact_line(lines, "item", ("kind", "plot_armor"), ("idx", card.get("slot")),
+                          ("name", card.get("name")), ("role", card.get("role") or "unknown"),
+                          ("status", card.get("status")))
+
+
 def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
     data = _as_dict(payload.get("data"))
     summary = _format_fact_sequence(
@@ -840,10 +924,12 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
         ("result", _non_empty(data.get("result"))),
         ("stage", _non_empty(data.get("stage"))),
         ("stale", bool(data.get("stale")) if "stale" in data else None),
-        ("in_battle", bool(data.get("in_battle")) if "in_battle" in data else None),
+        ("in_battle", bool(data["in_battle"]) if data.get("in_battle") is not None else None),
     )
     lines = [f"ok {command} {summary}" if summary else f"ok {command}"]
     _append_shot(lines, payload)
+    if data.get("reason") == "reserve_overflow":
+        _append_fact_line(lines, "info", ("reason", "reserve_overflow"))
     _append_fact_line(
         lines,
         "info",
@@ -853,6 +939,32 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
         ("exp", data.get("exp") if "exp" in data else None),
     )
     _append_fact_line(lines, "info", ("settle_text", _non_empty(data.get("settle_text"))))
+    report = _as_dict(data.get("battle_report"))
+    if report:
+        goal = report.get("minimum_progress_met")
+        progress = report.get("progress_pct")
+        penalties = report.get("action_value_penalties")
+        breakdown = report.get("team_hp_breakdown")
+        _append_fact_line(
+            lines, "info",
+            ("progress_pct", "unknown" if progress is None else progress),
+            ("minimum_progress_met", "unknown" if goal is None else goal),
+            ("action_value_events", "unknown" if penalties is None else len(penalties)),
+            ("hp_breakdown_items", "unknown" if breakdown is None else len(breakdown)),
+        )
+        for idx, event in enumerate(_as_list(penalties), start=1):
+            delta = event.get("delta")
+            _append_fact_line(
+                lines, "item", ("kind", "action_value_penalty"), ("idx", idx),
+                ("cause", event.get("kind")), ("delta", "unknown" if delta is None else delta),
+                ("text", event.get("text")),
+            )
+        for row in _as_list(breakdown):
+            delta = row.get("delta")
+            _append_fact_line(
+                lines, "item", ("kind", "team_hp_change"), ("label", row.get("label")),
+                ("delta", "unknown" if delta is None else delta),
+            )
     _append_fact_line(
         lines,
         "info",
@@ -875,9 +987,23 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
             ("next_action", "cw.battle.run"),
             ("why", "battle_flow_not_finished"),
         )
+    elif data.get("next_action"):
+        _append_fact_line(lines, "info", ("next_action", data["next_action"]))
+    crystals = _as_dict(data.get("crystals"))
+    if crystals:
+        _append_fact_line(lines, "info", ("crystal_collection", crystals.get("last_crystal_collection")),
+                          ("collected", crystals.get("collected")), ("visible_remaining", crystals.get("visible_remaining")))
+    current = _as_dict(data.get("current_node"))
+    if current:
+        _append_fact_line(lines, "info", ("current_stage", current.get("stage")),
+                          ("current_node", current.get("node") or "unknown"),
+                          ("current_hp", current.get("hp") if current.get("hp") is not None else "unknown"))
+    _append_cw_run_facts(lines, data)
     if any(key in data for key in ("slots", "equipment", "shop", "skill_info")):
         equipment = _append_cw_preparation_sections(lines, data)
         _append_cw_equipment_low_confidence_warning(lines, payload, equipment)
+    decision = _as_dict(data.get("decision"))
+    _append_cw_stage_entries(lines, _as_list(decision.get("entries")))
     _append_warnings(lines, payload)
     _append_references(lines, payload)
     return lines
@@ -886,6 +1012,14 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
 def _render_cw_battle_clear_in_progress(command: str, payload: dict[str, Any]) -> list[str]:
     data = _as_dict(payload.get("data"))
     return _render_success_summary(command, payload, ("cleared", bool(data.get("cleared"))))
+
+
+def _render_cw_open_chimera_projector(command: str, payload: dict[str, Any]) -> list[str]:
+    data = _as_dict(payload.get("data"))
+    return _render_success_summary(
+        command, payload, ("name", data.get("name")), ("stage", data.get("stage")),
+        ("next_action", data.get("next_action")),
+    )
 
 
 def _render_cw_entry(command: str, payload: dict[str, Any]) -> list[str]:
@@ -944,6 +1078,8 @@ def _render_cw_portal_select(command: str, payload: dict[str, Any]) -> list[str]
         f"ok {command} {summary}" if summary else f"ok {command}"
     ]
     _append_success_capture_block(lines, payload)
+    if data.get("status") == "observed":
+        _append_fact_line(lines, "info", ("status", "observed"), ("stage", data.get("stage")))
     equipment = _append_cw_preparation_sections(lines, data)
     _append_cw_equipment_low_confidence_warning(lines, payload, equipment)
     equipment_stale = equipment.get("stale")
@@ -1048,6 +1184,9 @@ def _append_cw_slot_lines(lines: list[str], data: dict[str, Any]) -> None:
                 continue
 
             item = _as_dict(value)
+            if zone == "hand" and item.get("kind") == "weapon_box":
+                lines.append("slot " + _format_fact_sequence(*facts, ("kind", "weapon_box"), ("name", "简易武装箱")))
+                continue
             if item:
                 name = item.get("name")
                 cost = item.get("cost") if item.get("cost") is not None else item.get("price")
@@ -1079,6 +1218,7 @@ def _append_cw_slot_trait_summary(lines: list[str], data: dict[str, Any]) -> Non
         if not isinstance(item, dict):
             continue
         active_tier = item.get("active_tier")
+        active_tiers = item.get("active_tiers")
         tiers = item.get("tiers")
         tiers_text = None
         if isinstance(tiers, list):
@@ -1088,7 +1228,8 @@ def _append_cw_slot_trait_summary(lines: list[str], data: dict[str, Any]) -> Non
                 tier_value = _coerce_int(value)
                 if value is None:
                     continue
-                suffix = "*" if active_tier_value is not None and tier_value is not None and tier_value <= active_tier_value else ""
+                active = tier_value in active_tiers if isinstance(active_tiers, list) else active_tier_value is not None and tier_value <= active_tier_value
+                suffix = "*" if active else ""
                 compact.append(f"{value}{suffix}")
             if compact:
                 tiers_text = ",".join(compact)
@@ -1098,6 +1239,7 @@ def _append_cw_slot_trait_summary(lines: list[str], data: dict[str, Any]) -> Non
             ("羁绊", item.get("trait")),
             ("档位", tiers_text),
             ("当前角色", item.get("owned_roles")),
+            ("达标角色", item.get("contributing_roles")),
         )
 
 
@@ -1309,6 +1451,32 @@ def _render_cw_shop_action(command: str, payload: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _render_cw_experience(command: str, payload: dict[str, Any]) -> list[str]:
+    data = _as_dict(payload.get("data"))
+    summary = _format_fact_sequence(
+        ("status", data.get("status")),
+        ("target_level", data.get("target_level")),
+        ("reason", data.get("reason")),
+    )
+    lines = [f"ok {command} {summary}".rstrip()]
+    _append_success_capture_block(lines, payload)
+    _append_fact_line(
+        lines,
+        "info",
+        ("stage", data.get("stage")),
+        *((key, data[key] if data[key] is not None else "unknown")
+          for key in ("level", "exp", "coins", "cost_per_purchase", "purchases_required", "gold_required")
+          if key in data),
+    )
+    if command == "cw.shop.buy_exp_to_level":
+        _append_fact_line(lines, "info", ("purchases_attempted", data.get("purchases_attempted")),
+                          ("purchases_verified", data.get("purchases_verified")),
+                          ("gold_spent", data.get("gold_spent")))
+    _append_warnings(lines, payload)
+    _append_references(lines, payload)
+    return lines
+
+
 def _render_cw_equipment_prepare(command: str, payload: dict[str, Any]) -> list[str]:
     data = _as_dict(payload.get("data"))
     return _render_success_summary(
@@ -1515,6 +1683,15 @@ def _append_cw_equipment_item_lines(lines: list[str], data: dict[str, Any]) -> N
 
 def _append_cw_equipment_lines(lines: list[str], data: dict[str, Any], *, include_summary: bool = False) -> None:
     _append_cw_equipment_item_lines(lines, data)
+    if "consumables" in data:
+        consumables = data["consumables"]
+        _append_fact_line(lines, "info", ("consumables", len(consumables) if isinstance(consumables, list) else "unknown"))
+        for value in _as_list(consumables):
+            item = _as_dict(value)
+            _append_fact_line(
+                lines, "item", ("kind", "consumable"), ("name", item.get("name") or "unknown"),
+                ("count", item.get("count")), ("center", _format_center(item.get("center"))),
+            )
     if include_summary:
         _append_fact_line(
             lines,
@@ -1602,6 +1779,10 @@ def _render_cw_metrics(command: str, payload: dict[str, Any]) -> list[str]:
         command,
         payload,
         ("status", data.get("last_crystal_collection")),
+        ("stage", data.get("stage")),
+        ("swipes", data.get("swipes")),
+        ("collected", data.get("collected")),
+        ("visible_remaining", data.get("visible_remaining")),
     )
 
 
@@ -1671,6 +1852,22 @@ def _render_cw_options(command: str, payload: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _render_cw_weapon_box(command: str, payload: dict[str, Any]) -> list[str]:
+    data = _as_dict(payload.get("data"))
+    options = _as_list(data.get("options"))
+    facts = _format_fact_sequence(("pos", data.get("pos")), ("name", data.get("title")), ("count", len(options)))
+    lines = [f"ok {command} {facts}"]
+    _append_success_capture_block(lines, payload)
+    for opt in options:
+        _append_fact_line(
+            lines, "opt", ("idx", opt.get("idx")), ("name", opt.get("name") or "unknown"),
+            ("center", _format_center(opt.get("center"))),
+        )
+    _append_warnings(lines, payload)
+    _append_references(lines, payload)
+    return lines
+
+
 def _render_cw_event_result(command: str, payload: dict[str, Any]) -> list[str]:
     data = _as_dict(payload.get("data"))
     choice_value = data.get("variable_cost_choice")
@@ -1717,6 +1914,11 @@ def _render_cw_event_reconcile_result(command: str, payload: dict[str, Any]) -> 
         ("todo", data.get("todo") if "todo" in data else None),
         ("why", data.get("why") if "why" in data else None),
     )
+    _append_cw_run_facts(lines, data)
+    if any(key in data for key in ("slots", "equipment", "shop")):
+        equipment = _append_cw_preparation_sections(lines, data)
+        _append_cw_equipment_low_confidence_warning(lines, payload, equipment)
+    _append_cw_stage_entries(lines, _as_list(_as_dict(data.get("decision")).get("entries")))
     _append_warnings(lines, payload)
     _append_references(lines, payload)
     return lines
@@ -2192,6 +2394,12 @@ def _render_daemon_request_status(command: str, payload: dict[str, Any]) -> list
         _append_fact_line(lines, "recover", ("action", "daemon.reconcile_session"), ("session", session_id))
         return lines
 
+    if command_name in CW_REQUEST_LOOKUP_COMMANDS and data.get("final") is True:
+        request_id = data.get("job_id") or data.get("request_id")
+        if request_id:
+            _append_fact_line(lines, "info", ("next_action", "daemon.request_result"), ("request", request_id))
+        return lines
+
     active_request = data.get("active_request")
     active_command = data.get("active_command")
     if state == "rejected" and active_request and active_command:
@@ -2210,7 +2418,7 @@ def _render_daemon_request_status(command: str, payload: dict[str, Any]) -> list
             _append_fact_line(
                 lines,
                 "info",
-                ("next_action", command_name),
+                ("next_action", "daemon.request_status" if command_name in CW_REQUEST_LOOKUP_COMMANDS else command_name),
                 ("request", next_request_id),
                 ("session", session_id),
             )
@@ -2242,6 +2450,11 @@ def _render_daemon_reconcile_session(command: str, payload: dict[str, Any]) -> l
 
 def _render_state_dump(command: str, payload: dict[str, Any]) -> list[str]:
     data = _as_dict(payload.get("data"))
+    if "cw_run" in data:
+        run = _as_dict(data["cw_run"])
+        summary = _format_fact_sequence(("session", data.get("session_id")), ("run_id", run.get("run_id")),
+                                        ("recorded", bool(run)))
+        return [f"ok {command} {summary}", "info detail_format=yaml"]
     scene_state = _as_dict(data.get("scene_state"))
     scene = next((name for name in scene_state if name != "daemon"), "unknown")
 
@@ -2308,25 +2521,32 @@ TEXT_RENDERERS = {
     "cw.guide.apply": _render_cw_guide_summary,
     "cw.guide.current": _render_cw_guide_summary,
     "cw.stage.detect": _render_cw_stage,
+    "cw.stage.read": _render_cw_stage_read,
+    "cw.stage.opening": _render_cw_stage_opening,
     "cw.stage.wait": _render_cw_stage,
     "cw.slots.read": _render_cw_slots_read,
     "cw.slots.swap": _render_cw_slots,
     "cw.slots.place": _render_cw_slots,
     "cw.crystals.collect": _render_cw_metrics,
     "cw.hand.sell": _render_cw_slots,
+    "cw.hand.open_box": _render_cw_weapon_box,
     "cw.hand.sell_plan": _render_cw_sell_plan,
     "cw.shop.open": _render_cw_shop_action,
     "cw.shop.scan": _render_cw_shop_action,
     "cw.shop.buy_slot": _render_cw_shop_action,
     "cw.shop.buy_exp": _render_cw_shop_action,
+    "cw.shop.plan_exp": _render_cw_experience,
+    "cw.shop.buy_exp_to_level": _render_cw_experience,
     "cw.shop.refresh": _render_cw_shop_action,
     "cw.shop.close": _render_cw_shop_action,
     "cw.shop.status": _render_cw_shop_status,
     "cw.equipment.compose": _render_cw_equipment_compose,
+    "cw.equipment.open_chimera_projector": _render_cw_open_chimera_projector,
     "cw.equipment.prepare": _render_cw_equipment_prepare,
     "cw.equipment.read": _render_cw_equipment_read,
     "cw.replenish.read": _render_cw_options,
     "cw.replenish.choose": _render_cw_stage,
+    "cw.replenish.refresh": _render_cw_stage_read,
     "cw.invest.read": _render_cw_options,
     "cw.invest.choose": _render_cw_stage,
     "cw.encounter.read": _render_cw_options,
@@ -2337,10 +2557,13 @@ TEXT_RENDERERS = {
     "cw.battle.start": _render_cw_stage,
     "cw.battle.continue": _render_cw_stage,
     "cw.battle.run": _render_cw_battle_run,
+    "cw.battle.replay": _render_cw_battle_run,
     "cw.battle.clear_in_progress": _render_cw_battle_clear_in_progress,
     "cw.settle.next": _render_cw_stage,
     "cw.event.handle": _render_cw_event_result,
     "cw.event.reconcile": _render_cw_event_reconcile_result,
+    "cw.event.open_aura_reselect": _render_cw_stage_read,
+    "cw.event.drag_aura_role": _render_cw_stage_read,
     "window.attach": _render_window_attach,
     "window.launch": _render_window_launch,
     "session.create": _render_session_create,
@@ -2406,7 +2629,8 @@ def _render_async_running(command: str, payload: dict[str, Any]) -> list[str]:
     )
     lines = [f"ok {command} {facts}" if facts else f"ok {command}"]
     if request_id:
-        _append_fact_line(lines, "info", ("next_action", command), ("request", request_id))
+        next_action = "daemon.request_status" if command in CW_REQUEST_LOOKUP_COMMANDS else command
+        _append_fact_line(lines, "info", ("next_action", next_action), ("request", request_id))
     return lines
 
 

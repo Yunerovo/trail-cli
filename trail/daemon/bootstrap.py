@@ -94,9 +94,6 @@ def install_bootstrap(daemon_home: Path) -> Path:
             manifest = None
         else:
             daemon_entrypoint = _daemon_entrypoint()
-            if manifest.install.daemon_entrypoint != daemon_entrypoint:
-                manifest.install.daemon_entrypoint = daemon_entrypoint
-                save_manifest(path, manifest)
             Path(manifest.install.log_dir).mkdir(parents=True, exist_ok=True)
             token_file = Path(manifest.install.token_file)
             token_file.parent.mkdir(parents=True, exist_ok=True)
@@ -108,6 +105,10 @@ def install_bootstrap(daemon_home: Path) -> Path:
                 launcher=launcher,
                 launcher_python=launcher_python,
             )
+            if manifest.install.daemon_entrypoint != daemon_entrypoint:
+                manifest = load_manifest(path)
+                manifest.install.daemon_entrypoint = daemon_entrypoint
+                save_manifest(path, manifest)
             return path
 
     log_dir = daemon_home / "logs"
@@ -137,13 +138,13 @@ def install_bootstrap(daemon_home: Path) -> Path:
             last_start_error=None,
         ),
     )
-    save_manifest(path, manifest)
     launcher, launcher_python = write_launcher_script(daemon_home)
     register_scheduled_task(
         bootstrap_id=manifest.install.bootstrap_id,
         launcher=launcher,
         launcher_python=launcher_python,
     )
+    save_manifest(path, manifest)
     return path
 
 
@@ -158,6 +159,8 @@ def start_bootstrap(daemon_home: Path) -> bool:
     manifest.runtime.pid = None
     manifest.runtime.last_transition_at = _utc_now()
     manifest.runtime.last_start_error = None
+    manifest.runtime.updated_at = manifest.runtime.last_transition_at
+    save_manifest(manifest_path, manifest)
 
     try:
         launcher, launcher_python = write_launcher_script(daemon_home)
@@ -179,8 +182,6 @@ def start_bootstrap(daemon_home: Path) -> bool:
         save_manifest(manifest_path, manifest)
         return False
 
-    manifest.runtime.updated_at = _utc_now()
-    save_manifest(manifest_path, manifest)
     return True
 
 

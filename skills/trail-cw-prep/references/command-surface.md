@@ -13,13 +13,19 @@
 - `trail cw event handle --session <id> --variable-cost-choice cost_up|equipment`：LV999 显式选择事件入口；CLI 会把 `variable_cost_choice` 发送给 daemon。`cost_up` 会 `确认升费后确定性同步当前 shop snapshot，不刷新商店、不标 stale`；Agent 继续消费当前输出里的 `item` / `slot` cost 事实，只有页面变化或后续命令标记 stale 时才重新扫描。
 - `trail cw event handle --session <id>` 返回 `event_type=unknown`、`next_action=manual` 或 `handoff_skill=trail-cw-event-unknown` 时，普通 prep 停止自治，改由 unknown 手工处理；该路径固定标记 `stale_facts=stage/status|slots|shop|equipment|strategy|sell_plan|variable_cost_roles`，并保留 `crystals_stale=0`。若输出 `CW_EVENT_LV999_STATE_STALE`，说明 `银狼LV.999` 的 cost / star / slot 事实需要后续恢复，cost 只在 `item`/`slot` 行恢复后才能参与判断。
 - `trail cw event reconcile --session <id>`：未知事件手工处理后的恢复入口；reconcile 用于解除或确认 stale facts。若仍提示 `strategy`、`sell_plan`、slots、shop 或 equipment stale，先补跑对应读命令；确认回到 preparation / shop 后再继续普通 prep。
-- `trail cw shop buy-exp --session <id>`：商店 mutation；本 skill 不决定何时执行。
+- `trail cw shop plan-exp --session <id> --target-level N`：只读估算下一级经验与实际支出，返回同帧截图，可用 YAML。
+- `trail cw shop buy-exp --session <id>`：单次购买经验。带 `--target-level N [--max-gold M]` 时先核算下一级成本与预算，再逐次核对实际扣款和经验，返回已核实笔数及金币支出。
 - `trail cw shop refresh --session <id>` / `trail cw shop close --session <id>`：商店 mutation；本 skill 不决定何时执行。
-- `trail cw crystals collect --session <id>`：晶矿 mutation；本 skill 不决定何时执行。
+- `trail cw crystals collect --session <id>`：检查备战页面和可见蓝色、黄金晶球，返回收取数量、可见剩余数量以及是否被其它页面挡住。
+- `trail cw replenish choose|invest choose|encounter choose --session <id> --option N`：先验证页面，再按从左至右的编号选择并确认。补给页最多五张卡。
+- `trail cw replenish refresh --session <id>`：确认补给页仍有次数后刷新整组卡片一次，核对剩余次数减少后返回该帧和 `refresh_remaining`。
+- `trail cw event open-aura-reselect --session <id> [--option N]`：读取主角光环与奇遇详情，或打开指定卡的重选确认提示。
+- `trail cw event drag-aura-role --session <id> --source <front|back>:N`：在光环选择页按物理槽位拖动角色到中央，槽位从左至右编号。命令确认中央角色后回包，光环选择及确认由调用方完成。
+- `trail cw equipment open-chimera-projector --session <id>`：根据道具全名打开奇美拉选择页。
 - `trail cw hand sell-plan --session <id>` / `trail cw hand sell --session <id> --slot 1 --slot 3`：卖牌建议和显式卖牌；本 skill 不决定何时执行。
 - `slots.read` 和 `shop.scan` 会按 CW config canonicalize 角色名；低置信度结果会带 `raw_name`、`score`、`match_kind`，必须先读截图确认。
 - `item traits=...` 是商品角色 canonicalization 结果，可在 slots 不 fresh 时仍出现；`field trait_summary` 不是默认文本 `item traits`，当前默认文本 renderer 不渲染 shop `trait_summary`，只在 fresh slots 的结构化/RPC 投影中可用。
 - 接收 `cw.portal.select` 或 `cw.battle.run` 的 preparation handoff 时，`trail-cw-prep` 优先复用同次 stage/slots/equipment/shop facts；带截图 success 先读原始截图，`# ` 行只是板块标题，不是 action/prefix/fact，Agent 只消费实体行：`# 综合信息`、`# 攻略提示`、`# 角色信息`、`# 羁绊信息`、`# 装备信息`、`# 装备优先级`、`# 角色装备需求`、`# 商店信息`。优先复用同次 equipment facts；缺失/stale/page changed 时才重跑 `cw.equipment.read`，不要在 handoff 后立刻重复扫描 slots/equipment/shop。
 - `# 羁绊信息` 下的羁绊摘要使用 `info 羁绊=... 档位="2*,4,6" 当前角色=...`；`*` 表示该档位已激活，默认文本不再输出 `已激活档位` 或 `占比`。
 - `trail cw battle run --session <id>`：战斗链；本 skill 不决定何时出战。返回 `status=in_progress` 时先读截图并按 `next_action=cw.battle.run` 续跑；返回 `status=completed result=lose stage=game_over stale=0 in_battle=0` 且带 `game_over=1 end_reason=global_battle_failed restart_candidate=1 returned_home=1` 时，说明本局已失败结束且命令已点击 `返回货币战争` 回到货币战争主页，先读结算截图和 `round/hp/score/promotion_points/settle_text`，再交回上游判断是否重开。
-- `trail cw battle run --session <id>` 返回 `status=completed result=win stage=preparation` 时，说明已进入下一轮普通备战；响应会带同类 stage/slots/equipment/shop/crystals/skill_info facts，并通过 preparation handoff 切回本 skill。先读截图和同次 facts，只有事实缺失、stale 或页面已变化时才补扫。
+- `trail cw battle run --session <id>` 返回 `status=completed stage=preparation` 时，响应包含本场战报和下一节点备战事实。可用 `--stop-at-plane` 在位面入口停下。只有事实缺失、stale 或页面已变化时才补扫。
