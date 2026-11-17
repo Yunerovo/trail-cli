@@ -1155,6 +1155,7 @@ def test_request_cancel_force_is_unsupported_and_does_not_change_running_job(tmp
     executor = RequestExecutor(command_service=business, session_service=registry)
     running = executor.handle(_request(tmp_path, method="ocr.read", call_id="call-1", payload={}, control=RequestControl(wait_timeout=0.0)))
     job_id = running["data"]["request"]
+    assert business.started.wait(1)
     status_before = registry.for_workspace(str(tmp_path)).request_status(job_id)
     token = executor._cancellation_tokens[job_id]
 
@@ -1285,7 +1286,7 @@ def test_request_cancel_does_not_overwrite_job_completed_during_cancel_update(tm
         if (
             loaded_job_id == job_id
             and record is not None
-            and record.get("state") == "accepted"
+            and record.get("state") in {"accepted", "running"}
             and not record.get("final")
             and token.is_cancelled()
             and not race_triggered
@@ -1574,3 +1575,93 @@ def test_session_result_writing_business_commands_hold_lease_until_job_and_call_
     assert loaded.last_screenshot == ".trail/shots/session-result.png"
     if method.startswith("cw."):
         assert loaded.scene_state["cw"]["shop"]["stale"] is True
+
+@pytest.mark.parametrize("final_state,stage,tainted", [
+    ("applied_but_not_persisted", "side_effect_applied", True),
+    ("persisted_but_response_unknown", "state_persisted", True),
+    ("failed_before_side_effect", "none", False),
+])
+def test_job_failure_uses_authoritative_mutation_journal(tmp_path, final_state, stage, tainted):
+    from trail.output.envelope import command_failure
+
+    class JournalFailure(CountingService):
+        def execute_business_request(self, request):
+            service = request.session_service
+            service.begin_mutation(session_id=None, request_id=request.request_id, command_name=request.method)
+            envelope = command_failure(code="WINDOW_NOT_FOUND", message="failure", data={})
+            service.finish_mutation(session_id=None, request_id=request.request_id, command_name=request.method,
+                                    final_state=final_state, envelope=envelope)
+            return envelope
+
+    registry = SessionServiceRegistry()
+    executor = RequestExecutor(command_service=JournalFailure(), session_service=registry)
+    response = executor.handle(_request(tmp_path, method="input.click", call_id="call-journal", payload={},
+                                        control=RequestControl(wait_timeout=1)))
+    assert not response["ok"]
+    status = registry.for_workspace(str(tmp_path)).request_status("call-journal")
+    assert status["final_state"] == final_state
+    assert status["side_effect_stage"] == stage
+    assert status["tainted"] is tainted
+
+
+def test_running_progress_and_result_can_be_read_by_call_id(tmp_path):
+    class ProgressService(SlowBusinessService):
+        def execute_business_request(self, request):
+            self.calls += 1
+            request.control.cancellation_token.publish_progress({"round": "3-4", "progress_pct": 67})
+            self.started.set()
+            self.release.wait(2)
+            return command_success(data={"status": "in_progress"}, screenshot=None)
+
+    service = ProgressService()
+    registry = SessionServiceRegistry()
+    executor = RequestExecutor(command_service=service, session_service=registry)
+    executor.handle(_request(tmp_path, method="cw.battle.run", call_id="call-progress", payload={}))
+    assert service.started.wait(1)
+    status = registry.for_workspace(str(tmp_path)).request_status("call-progress")
+    assert status["state"] == "running"
+    assert status["progress"] == {"round": "3-4", "progress_pct": 67}
+    service.release.set()
+    executor._futures[status["job_id"]].result(timeout=2)
+    result = executor.handle(_request(tmp_path, method="daemon.request_result", call_id="call-result",
+                                      payload={"request_id": "call-progress"}))
+    assert result["data"]["envelope"]["data"]["status"] == "in_progress"
+    assert service.calls == 1
+
+
+def test_request_result_reads_final_journal_when_memory_metadata_is_stale(tmp_path):
+    registry = SessionServiceRegistry()
+    service = registry.for_workspace(str(tmp_path))
+    executor = RequestExecutor(command_service=CountingService(), session_service=registry)
+    initial = service.create_job_record(job_id="job-race", job_key="key", method="cw.battle.run",
+                                        payload_digest="digest", session_id=None)
+    service.create_call_record(call_id="call-race", job_id="job-race", method="cw.battle.run",
+                               session_id=None, state="attached", executed=True)
+    executor._job_metadata["job-race"] = initial
+    executor._call_id_to_job_id["call-race"] = "job-race"
+    service.finish_job_record("job-race", state="completed", final_state="completed",
+                              last_visible_stage="responded", side_effect_stage="state_persisted",
+                              envelope=command_success(data={"status": "in_progress"}, screenshot=None), tainted=False)
+    result = executor.handle(_request(tmp_path, method="daemon.request_result", call_id="lookup-race",
+                                      payload={"request_id": "call-race"}))
+    assert result["ok"]
+    assert result["data"]["envelope"]["data"]["status"] == "in_progress"
+
+
+def test_progress_does_not_reverse_cancel_requested_or_final(tmp_path):
+    registry = SessionServiceRegistry()
+    service = registry.for_workspace(str(tmp_path))
+    service.create_job_record(job_id="job-cancel-progress", job_key="key", method="cw.battle.run",
+                              payload_digest="digest", session_id=None)
+    service.update_job_record("job-cancel-progress", state="cancel_requested", last_visible_stage="cancel_requested")
+    service.update_running_job("job-cancel-progress", progress={"round": "3-4"}, side_effect_stage="side_effect_applied")
+    status = service.request_status("job-cancel-progress")
+    assert status["state"] == status["last_visible_stage"] == "cancel_requested"
+    assert status["progress"]["round"] == "3-4"
+    assert status["side_effect_stage"] == "side_effect_applied"
+    service.finish_job_record("job-cancel-progress", state="cancelled", final_state="failed_before_side_effect",
+                              last_visible_stage="cancelled", side_effect_stage="none",
+                              envelope=command_success(data={}, screenshot=None), tainted=False)
+    service.update_running_job("job-cancel-progress", progress={"round": "3-5"})
+    assert service.request_status("job-cancel-progress")["state"] == "cancelled"
+    assert service.request_status("job-cancel-progress")["progress"]["round"] == "3-4"

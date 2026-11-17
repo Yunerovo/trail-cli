@@ -14,6 +14,7 @@ from trail.scenes.cw.battle_report import (
     BattleReport, CONTINUE_BUTTON, HP_DETAILS_POINT, REPORT_FRAME_SIZE, _ocr_region, battle_hud_from_page,
 )
 from trail.scenes.cw.events import _fail_if_battle_team_count_confirm_dialog, build_cw_battle_continuer, build_cw_battle_starter, build_cw_settle_continuer
+from trail.scenes.cw.terminal import classify_terminal, extract_terminal, looks_like_terminal, next_point
 from trail.scenes.cw.models import ensure_cw_state
 from trail.scenes.cw.stage import _read_ocr_box, _replace_stage_fields, _season_two_decision_stage, build_cw_stage_detector, mark_cw_stage_stale, project_cw_preparation_header
 from trail.session.models import SessionModel
@@ -479,6 +480,20 @@ def _unambiguous_hp(text: str) -> int | None:
     return None
 
 
+def _node_after(current, previous):
+    def parse(node):
+        match = re.fullmatch(r"([1-3])-(\d{1,2})", node) if isinstance(node, str) else None
+        return (int(match[1]), int(match[2])) if match else None
+    a, b = parse(current), parse(previous)
+    return a is not None and b is not None and a > b
+
+
+def _has_battle_start_hud(observation: BattleObservation) -> bool:
+    return bool(observation.frame is not None and battle_hud_from_page(observation.page_ocr_pieces)
+        and any("战斗开始" in _read_ocr_piece(p) and _piece_center_in_region(p, observation.frame, (.20,.12,.80,.70))
+                for p in observation.page_ocr_pieces))
+
+
 def classify_cw_battle_page(
     runtime,
     *,
@@ -488,6 +503,10 @@ def classify_cw_battle_page(
 ) -> str:
     del session
 
+    if observation is not None and (terminal_state := classify_terminal(observation)):
+        return terminal_state
+    if observation is not None and looks_like_terminal(observation):
+        return "terminal_guard"
     detected_state = _classify_stage_without_ocr(detected_stage)
     if detected_state is not None:
         return detected_state
@@ -495,6 +514,8 @@ def classify_cw_battle_page(
     if observation is None:
         observation = observe_cw_battle_page(runtime, detected_stage=detected_stage)
 
+    if _has_battle_start_hud(observation):
+        return "battle_progress"
     if _is_settlement_animation(observation):
         return "settle_animation"
     banner_node, overflow = _battle_screen_evidence(runtime, observation)
@@ -651,6 +672,11 @@ def _find_action_button_box_from_observation(
         normalized_piece = _normalize_observation_piece(piece)
         if normalized_piece is None:
             continue
+        if observation.frame is not None:
+            for key in ("left", "width"):
+                normalized_piece[key] = float(normalized_piece[key]) * _CW_REFERENCE_WIDTH / observation.frame.width
+            for key in ("top", "height"):
+                normalized_piece[key] = float(normalized_piece[key]) * _CW_REFERENCE_HEIGHT / observation.frame.height
         if _normalized_action_text(normalized_piece["text"]) not in normalized_allowed:
             continue
         if not _is_in_action_ocr_region(_box_center(normalized_piece)):
@@ -777,16 +803,19 @@ def _finalize_battle_result(
     if report is not None:
         result = report.apply(result)
     _persist_battle_round(session, result)
-    _store_resume_in_battle(
-        session,
-        enabled=result.get("status") == "in_progress" and result.get("in_battle") is True,
-    )
+    if result.get("status") != "in_progress" or result.get("in_battle") is True:
+        _store_resume_in_battle(
+            session,
+            enabled=result.get("status") == "in_progress" and result.get("in_battle") is True,
+        )
     resume = _battle_resume_state(session)
     if result.get("status") == "completed":
         resume.pop("start_pending", None)
+        resume.pop("start_node", None)
+        resume.pop("settlement_actions", None)
     if report is not None and result.get("status") == "in_progress":
         resume["report"] = report.state
-    else:
+    elif not (result.get("status") == "in_progress" and result.get("terminal_report")):
         resume.pop("report", None)
     return result
 
@@ -826,6 +855,100 @@ def _unknown_battle_state(*, state: str, detail: object | None = None) -> TrailE
     return TrailError("CW_BATTLE_STATE_UNKNOWN", message)
 
 
+def advance_cw_settlement_once(session: SessionModel, *, runtime, checkpoint, timeout: float = 3.0) -> dict[str, object]:
+    """Advance one verified result page and observe a successor, without clicking it."""
+    deadline = monotonic() + timeout
+    resume = _battle_resume_state(session)
+    facts = ensure_cw_state(session).get("run_facts")
+    run_id = facts.get("run_id") if isinstance(facts, dict) else None
+    terminal = resume.get("terminal")
+    if isinstance(terminal, dict) and run_id is not None and terminal.get("run_id") != run_id:
+        resume.pop("terminal", None)
+    actions = resume.setdefault("settlement_actions", {})
+    attempted = False
+    source_node = None
+    source_phase = None
+    while True:
+        observation = observe_cw_battle_page(runtime, detected_stage=None)
+        state = classify_cw_battle_page(runtime, session=session, detected_stage=None, observation=observation)
+        if observation.frame is None:
+            state = "unknown"
+        if state == "terminal_detail":
+            terminal = resume.setdefault("terminal", {})
+            if run_id is not None:
+                terminal["run_id"] = run_id
+            terminal["detail"] = extract_terminal(runtime, observation, state)
+            checkpoint()
+            return {"value": "game_over", "status": "completed", "stale": False}
+        if attempted:
+            if source_phase != "evaluation" and state in {"terminal_evaluation", "layer_transition"}:
+                return {"value": "settle" if state.startswith("terminal_") else state,
+                        "status": "completed", "stale": False}
+            node = None
+            if state in {"battle_start", "preparation", "special_preparation"}:
+                node = _special_preparation_header(observation).get("node")
+            elif state == "battle_progress":
+                hud = battle_hud_from_page(observation.page_ocr_pieces)
+                node = hud[0] if hud else None
+            elif state == "battle_transition":
+                node, _ = _battle_screen_evidence(runtime, observation)
+            if source_phase != "evaluation" and _node_after(node, source_node):
+                for key in ("report", "settlement_actions", "in_battle_hint", "start_pending", "start_node"):
+                    resume.pop(key, None)
+                checkpoint()
+                return {"value": "preparation" if state in {"battle_start", "special_preparation"} else state,
+                        "status": "completed", "stale": False}
+        elif state == "terminal_evaluation" and observation.frame is not None:
+            terminal = resume.setdefault("terminal", {})
+            if run_id is not None:
+                terminal["run_id"] = run_id
+            point = next_point(observation)
+            facts = extract_terminal(runtime, observation, state)
+            if point is not None and facts.get("result") is not None and not terminal.get("next_attempted"):
+                terminal["evaluation"] = {**terminal.get("evaluation", {}), **facts}
+                terminal["next_attempted"] = True
+                checkpoint()
+                if deadline - monotonic() > 0:
+                    runtime.click_point(*point)
+                    attempted, source_phase = True, "evaluation"
+                else:
+                    terminal.pop("next_attempted", None)
+                    checkpoint()
+            else:
+                attempted, source_phase = True, "evaluation"
+        elif state in {"settle_entry", "settle_followup"} and observation.frame is not None:
+            label = "继续挑战" if state == "settle_entry" else "前往结算"
+            button = _find_action_button_box_from_observation(observation, allowed_texts={label})
+            title = any(_contains_any(_read_ocr_piece(p), ("挑战成功", "挑战失败", "挑战结束"))
+                        and _piece_center_in_region(p, observation.frame, (.37, .14, .63, .25))
+                        for p in observation.page_ocr_pieces)
+            nodes = [re.search(r"(?<!\d)([1-3]-\d{1,2})(?!\d)", _read_ocr_piece(p))
+                     for p in observation.page_ocr_pieces
+                     if _piece_center_in_region(p, observation.frame, (.39, .24, .50, .30))]
+            source_node = next((m.group(1) for m in nodes if m), None)
+            if title and button and source_node:
+                prior = actions.get("node") or (resume.get("report") or {}).get("round")
+                if _node_after(source_node, prior):
+                    actions.clear()
+                key = "entry" if state == "settle_entry" else "followup:前往结算"
+                if not actions.get(key) and deadline - monotonic() > 0:
+                    actions["node"] = source_node
+                    actions[key] = True
+                    checkpoint()
+                    if deadline - monotonic() > 0:
+                        runtime.click_point(*_box_center(button))
+                        attempted, source_phase = True, "result"
+                    else:
+                        actions.pop(key, None)
+                        checkpoint()
+                else:
+                    attempted = True
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return {"value": "settle", "status": "in_progress", "stale": True}
+        sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+
+
 def _mark_cancel_side_effect_applied(cancellation_token) -> None:
     if cancellation_token is not None:
         setattr(cancellation_token, "side_effect_stage", "side_effect_applied")
@@ -833,12 +956,14 @@ def _mark_cancel_side_effect_applied(cancellation_token) -> None:
 
 def run_cw_battle(
     session: SessionModel, *, runtime, timeout: int | float, cancellation_token=None, stop_at_plane: bool = False,
+    terminal_checkpoint=None, publish_progress=None, battle_checkpoint=None,
 ) -> dict[str, object]:
     deadline = monotonic() + timeout
     started_chain = False
     start_attempted = False
     resume_in_battle = _seed_resume_in_battle(session)
     start_pending = bool(_battle_resume_state(session).get("start_pending"))
+    resume_start_pending = start_pending
     settle_chain_seen = False
     summary: dict[str, object] = {}
     report_enabled = callable(getattr(runtime, "ocr_image", None)) and callable(getattr(runtime, "screenshot", None))
@@ -848,9 +973,37 @@ def run_cw_battle(
     combat_seen = False
     transition_seen = False
     transition_frame = None
+    terminal = _battle_resume_state(session).get("terminal")
+    terminal = dict(terminal) if isinstance(terminal, dict) else {}
+    run_facts = ensure_cw_state(session).get("run_facts")
+    run_id = run_facts.get("run_id") if isinstance(run_facts, dict) else None
+    if terminal and run_id is not None and terminal.get("run_id") != run_id:
+        terminal = {}
+        _battle_resume_state(session).pop("terminal", None)
     stage_detector = build_cw_stage_detector(runtime)
+    def rollback_start():
+        _battle_resume_state(session).pop("start_pending", None)
+        _battle_resume_state(session).pop("start_node", None)
+
+    def before_dispatch(rollback, checkpoint):
+        try:
+            if cancellation_token is not None:
+                cancellation_token.throw_if_cancelled()
+            expired = deadline - monotonic() <= 0
+        except Exception:
+            rollback()
+            checkpoint()
+            raise
+        if expired:
+            rollback()
+            checkpoint()
+            return False
+        return True
     if isinstance(previous_report, dict) and isinstance(previous_report.get("settlement"), dict):
         summary = dict(previous_report["settlement"])
+        started_chain = True
+        settle_chain_seen = True
+    elif _battle_resume_state(session).get("settlement_actions"):
         started_chain = True
         settle_chain_seen = True
     elif report is not None and report.state.get("waiting_for_settlement_animation"):
@@ -873,9 +1026,21 @@ def run_cw_battle(
                     state = "settle_followup"
                 elif hud and hud[0] == report.state.get("round"):
                     state = "battle_progress"
+            if observation is not None and (terminal_state := classify_terminal(observation)):
+                state = terminal_state
+            elif observation is not None and looks_like_terminal(observation):
+                state = "terminal_guard"
             if state is None:
                 detected_stage = stage_detector()
                 state = _classify_stage_without_ocr(detected_stage)
+                if report is not None and observation is None:
+                    observation = observe_cw_battle_page(runtime, detected_stage=detected_stage)
+                if observation is not None and (terminal_state := classify_terminal(observation)):
+                    state = terminal_state
+                elif observation is not None and looks_like_terminal(observation):
+                    state = "terminal_guard"
+                elif observation is not None and _has_battle_start_hud(observation):
+                    state = "battle_progress"
             if cancellation_token is not None:
                 cancellation_token.throw_if_cancelled()
             if state is None:
@@ -889,12 +1054,92 @@ def run_cw_battle(
                 )
                 if cancellation_token is not None:
                     cancellation_token.throw_if_cancelled()
+            result_node = None
+            if observation is not None and observation.frame is not None:
+                # A positioned HUD for a later node is stronger than durable state from
+                # the previous node. Keep recorded run history, but never transfer its
+                # settlement, actions or progress to the new battle.
+                hud_now = battle_hud_from_page(observation.page_ocr_pieces)
+                prior_node = ((report.state.get("round") if report is not None else None)
+                              or summary.get("round") or _battle_resume_state(session).get("start_node"))
+                result_node = None
+                if state in {"settle_entry", "settle_followup"}:
+                    title = any(_contains_any(_read_ocr_piece(p), ("挑战成功", "挑战失败"))
+                                and _piece_center_in_region(p, observation.frame, (.37, .14, .63, .25))
+                                for p in observation.page_ocr_pieces)
+                    action = _find_action_button_box_from_observation(observation,
+                        allowed_texts={"继续挑战", "前往结算"})
+                    nodes = [re.search(r"(?<!\d)([1-3]-\d{1,2})(?!\d)", _read_ocr_piece(p))
+                             for p in observation.page_ocr_pieces
+                             if _piece_center_in_region(p, observation.frame, (.39, .24, .50, .30))]
+                    if title and action:
+                        result_node = next((m.group(1) for m in nodes if m), None)
+                forward_node = hud_now[0] if hud_now else result_node
+                if _node_after(forward_node, prior_node):
+                    summary = {}
+                    settle_chain_seen = False
+                    started_chain = True
+                    resume_in_battle = False
+                    start_pending = False
+                    resume = _battle_resume_state(session)
+                    for key in ("report", "settlement_actions", "start_pending", "start_node"):
+                        resume.pop(key, None)
+                    report = BattleReport() if report_enabled else None
+                    if hud_now:
+                        state = "battle_progress"
+                # This centered modal is the game's explicit rejection, not a
+                # generic confirmation dialog. Leave it visible for the user.
+                if any("前台区域无角色，无法出战" in _read_ocr_piece(p).replace(" ", "")
+                       and _piece_center_in_region(p, observation.frame, (.25, .40, .75, .60))
+                       for p in observation.page_ocr_pieces):
+                    rollback_start()
+                    if battle_checkpoint is not None:
+                        battle_checkpoint()
+                    _set_completed_stage(session, stage="preparation")
+                    return _finalize_battle_result(session, {"status": "blocked", "reason": "empty_front",
+                        "stage": "preparation", "stale": False, "in_battle": False,
+                        "_reconcile_frame": observation.frame}, None)
             if report is not None and observation is not None and observation.frame is not None:
                 if state in {"battle_progress", "unknown", "settle_animation"} and not settle_chain_seen:
                     report.observe(runtime, observation.frame, observation.page_ocr_pieces, phase="battle")
+                    hud_now = battle_hud_from_page(observation.page_ocr_pieces)
+                    if state == "battle_progress" and publish_progress is not None and hud_now and hud_now[0] == report.state.get("round"):
+                        publish_progress({"phase": "battle_progress", "round": hud_now[0], "progress_pct": hud_now[1], "source": "battle_hud"}, observation.frame)
                 if state == "settle_animation":
                     report.state["waiting_for_settlement_animation"] = True
                     report.observe(runtime, observation.frame, observation.page_ocr_pieces, phase="settlement")
+            followup_observed = False
+            if (state == "settle_followup" and result_node and report is not None
+                and observation is not None and observation.frame is not None
+                and _find_action_button_box_from_observation(observation, allowed_texts={"前往结算"}) is not None):
+                prior_round = report.state.get("round")
+                if prior_round and prior_round != result_node:
+                    state = "unknown"
+                else:
+                    report.state["round"] = result_node
+                    headline = next((_read_ocr_piece(p) for p in observation.page_ocr_pieces
+                        if _piece_center_in_region(p, observation.frame, (.37, .14, .63, .25))
+                        and _contains_any(_read_ocr_piece(p), ("挑战成功", "挑战失败"))), "")
+                    result_value = "win" if "挑战成功" in headline else "lose" if "挑战失败" in headline else None
+                    settlement = report.state.get("settlement")
+                    settlement = dict(settlement) if isinstance(settlement, dict) else {}
+                    settlement.update({"round": result_node, "result": result_value, "settle_text": headline})
+                    # On this verified final-result layout, the standalone number
+                    # directly beneath the heart is HP, not progress percentage.
+                    hp_values = [int(text) for p in observation.page_ocr_pieces
+                        if _piece_center_in_region(p, observation.frame, (.47, .65, .53, .72))
+                        and re.fullmatch(r"(?:100|[1-9]?\d)", text := _read_ocr_piece(p).strip())]
+                    if len(hp_values) == 1:
+                        settlement["hp"] = hp_values[0]
+                    report.state["settlement"] = settlement
+                    summary = dict(settlement)
+                    report.observe(runtime, observation.frame, observation.page_ocr_pieces, phase="settlement")
+                    followup_observed = True
+                    _battle_resume_state(session)["report"] = report.state
+                    if battle_checkpoint is not None:
+                        battle_checkpoint()
+            if terminal.get("evaluation") and state not in {"terminal_detail", "terminal_evaluation"}:
+                state = "terminal_wait"
             in_combat = state == "battle_progress"
             combat_seen = combat_seen or in_combat
             if state in {"battle_progress", "settle_animation", "settle_entry", "settle_followup", "game_over_followup", "game_over"}:
@@ -902,6 +1147,58 @@ def run_cw_battle(
                     summary.pop("stage")
                 transition_seen = False
                 transition_frame = None
+            if state in {"terminal_evaluation", "terminal_detail"}:
+                settle_chain_seen = started_chain = True
+                facts = extract_terminal(runtime, observation, state)
+                if run_id is not None:
+                    terminal["run_id"] = run_id
+                key = "evaluation" if state == "terminal_evaluation" else "detail"
+                existing = terminal.get(key) if isinstance(terminal.get(key), dict) else {}
+                terminal[key] = {**existing, **{k: v for k, v in facts.items() if v is not None or k not in existing}}
+                _battle_resume_state(session)["terminal"] = terminal
+                if report is not None and report.state:
+                    _battle_resume_state(session)["report"] = report.state
+                if publish_progress is not None:
+                    publish_progress({"phase": key, "source": "terminal", **terminal[key]}, observation.frame)
+                if state == "terminal_detail":
+                    if terminal_checkpoint is not None:
+                        terminal_checkpoint(terminal, observation.frame, key)
+                    _set_completed_stage(session, stage="game_over")
+                    result = {"status": "completed", "stage": "game_over", "stale": False,
+                              "in_battle": False, "result": terminal[key]["result"], "terminal_report": terminal,
+                              "_reconcile_frame": observation.frame}
+                    for source, target in (("node", "round"), ("hp", "hp"), ("score", "score")):
+                        if terminal[key].get(source) is not None:
+                            result[target] = terminal[key][source]
+                    # Only attach a node report when detail independently proves
+                    # it belongs to this terminal battle; preserve source separation.
+                    if (report is not None and terminal[key].get("node")
+                        and report.state.get("round") == terminal[key]["node"]):
+                        settlement = report.state.get("settlement")
+                        result["battle_report"] = report.apply(settlement if isinstance(settlement, dict) else {})["battle_report"]
+                    return _finalize_battle_result(session, result, None)
+                if terminal_checkpoint is not None and not terminal[key].get("evidence"):
+                    terminal_checkpoint(terminal, observation.frame, key)
+                point = next_point(observation) if terminal[key].get("result") is not None else None
+                if not terminal.get("next_attempted") and point is not None and terminal_checkpoint is not None and terminal[key].get("evidence"):
+                    terminal["next_attempted"] = True
+                    terminal_checkpoint(terminal, observation.frame, key)
+                    if before_dispatch(lambda: terminal.pop("next_attempted", None),
+                                       lambda: terminal_checkpoint(terminal, observation.frame, key)):
+                        runtime.click_point(*point)
+                        _mark_cancel_side_effect_applied(cancellation_token)
+                state = "terminal_wait"
+            if state in {"terminal_wait", "terminal_guard"}:
+                settle_chain_seen = started_chain = True
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    mark_cw_stage_stale(session)
+                    return _finalize_battle_result(session, {"status": "in_progress", "stage": "settle",
+                        "stale": True, "in_battle": False, "timeout_seconds": timeout,
+                        "result": terminal.get("evaluation", {}).get("result"),
+                        "terminal_report": terminal}, None)
+                sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                continue
             if state == "reserve_overflow":
                 _battle_resume_state(session).pop("start_pending", None)
                 _set_completed_stage(session, stage="preparation")
@@ -921,6 +1218,40 @@ def run_cw_battle(
                     if node:
                         summary["round"] = node
                         summary["stage"] = "battle_transition"
+                if publish_progress is not None and observation is not None:
+                    publish_progress({"phase": "battle_transition", "round": summary.get("round"),
+                                      "progress_pct": None, "source": "transition"}, observation.frame)
+            if (state in {"battle_start", "preparation"} and observation is not None
+                and observation.frame is not None and resume_in_battle and not start_pending
+                and not combat_seen and not settle_chain_seen
+                and not (report is not None and report.state.get("round"))):
+                # An unanchored legacy hint alone cannot prove that this board
+                # belongs to a completed or pending battle.
+                resume_in_battle = False
+                _store_resume_in_battle(session, enabled=False)
+            if (state in {"battle_start", "preparation"} and observation is not None
+                and observation.frame is not None and (start_pending or resume_in_battle or combat_seen or settle_chain_seen)):
+                current_node = _special_preparation_header(observation).get("node")
+                prior_node = ((report.state.get("round") if report is not None else None)
+                              or _battle_resume_state(session).get("start_node") or summary.get("round"))
+                if current_node and prior_node and not _node_after(current_node, prior_node):
+                    state = "unknown"
+            if (state in {"battle_start", "preparation"} and start_pending and not combat_seen
+                and observation is not None and observation.frame is not None):
+                current_node = _special_preparation_header(observation).get("node")
+                pending_node = _battle_resume_state(session).get("start_node")
+                if _node_after(current_node, pending_node):
+                    _set_completed_stage(session, stage="preparation")
+                    return _finalize_battle_result(session, {**summary, "round": pending_node,
+                        "status": "completed", "stage": "preparation", "stale": False,
+                        "in_battle": False}, report)
+            if (state in {"battle_start", "preparation"} and resume_in_battle and not combat_seen
+                and not settle_chain_seen and observation is not None and observation.frame is not None):
+                header = _special_preparation_header(observation)
+                current_node = header.get("node")
+                previous_node = report.state.get("round") if report is not None else None
+                if not _node_after(current_node, previous_node):
+                    state = "unknown"
             if state in {"battle_start", "preparation"} and (combat_seen or settle_chain_seen or resume_in_battle or
                     (started_chain and not (start_pending or start_attempted or transition_seen))):
                 completed_stage = detected_stage if detected_stage == "preparation" else "preparation"
@@ -954,6 +1285,9 @@ def run_cw_battle(
             if state in {"settle_animation", "settle_entry", "settle_followup", "game_over_followup"}:
                 settle_chain_seen = True
 
+            if (state == "stable_stage" and (resume_start_pending or resume_in_battle) and not combat_seen
+                and not settle_chain_seen and observation is not None and observation.frame is not None):
+                state = "unknown"
             if state == "stable_stage":
                 stage = detected_stage
                 if stage not in STABLE_BATTLE_RETURN_STAGES:
@@ -1039,6 +1373,26 @@ def run_cw_battle(
                 return _finalize_battle_result(session, timed_out, report)
 
             if state == "battle_start":
+                slots = ensure_cw_state(session).get("slots")
+                empty_front_on_frame = (observation is not None and observation.frame is not None
+                    and any(re.fullmatch(r"0\s*/\s*[1-9]\d*", _read_ocr_piece(p).strip())
+                            and _piece_center_in_region(p, observation.frame, (.42, .19, .58, .28))
+                            for p in observation.page_ocr_pieces)
+                    and any("前台区域" in _read_ocr_piece(p).replace(" ", "")
+                            and _piece_center_in_region(p, observation.frame, (.42, .27, .58, .32))
+                            for p in observation.page_ocr_pieces))
+                if (empty_front_on_frame or ((observation is None or observation.frame is None)
+                    and isinstance(slots, dict) and slots.get("stale") is False
+                    and isinstance(slots.get("front"), list) and not any(slots["front"]))):
+                    rollback_start()
+                    if battle_checkpoint is not None:
+                        battle_checkpoint()
+                    _set_completed_stage(session, stage="preparation")
+                    blocked = {"status": "blocked", "reason": "empty_front", "stage": "preparation",
+                               "stale": False, "in_battle": False}
+                    if observation is not None and observation.frame is not None:
+                        blocked["_reconcile_frame"] = observation.frame
+                    return _finalize_battle_result(session, blocked, None)
                 if start_attempted:
                     sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
                     continue
@@ -1048,13 +1402,38 @@ def run_cw_battle(
                     point = _battle_start_point(observation)
                     if point is None:
                         raise _unknown_battle_state(state=state)
+                    _battle_resume_state(session)["start_pending"] = True
+                    start_node = _special_preparation_header(observation).get("node")
+                    if start_node:
+                        _battle_resume_state(session)["start_node"] = start_node
+                    if battle_checkpoint is not None:
+                        battle_checkpoint()
+                    if publish_progress is not None:
+                        publish_progress({"phase": "start_pending", "round": start_node,
+                                          "progress_pct": None, "source": "preparation"}, observation.frame)
+                    if battle_checkpoint is not None and not before_dispatch(rollback_start, battle_checkpoint):
+                        start_pending = False
+                        continue
                     runtime.click_point(*point)
                     _fail_if_battle_team_count_confirm_dialog(runtime)
                 else:
+                    _battle_resume_state(session)["start_pending"] = True
+                    if battle_checkpoint is not None:
+                        battle_checkpoint()
+                    if publish_progress is not None:
+                        publish_progress({"phase": "start_pending", "round": None, "progress_pct": None,
+                                          "source": "preparation"}, None)
+                    if battle_checkpoint is not None and not before_dispatch(rollback_start, battle_checkpoint):
+                        start_pending = False
+                        continue
                     _start_battle(runtime)
                 _battle_resume_state(session)["start_pending"] = True
                 start_pending = True
                 _mark_cancel_side_effect_applied(cancellation_token)
+                if publish_progress is not None:
+                    publish_progress({"phase": "start_pending", "round": _battle_resume_state(session).get("start_node"),
+                                      "progress_pct": None, "source": "preparation"},
+                                     observation.frame if observation is not None else None)
                 if cancellation_token is not None:
                     cancellation_token.throw_if_cancelled()
                 start_attempted = True
@@ -1067,6 +1446,16 @@ def run_cw_battle(
                 continue
 
             if state == "settle_entry":
+                # The headline appears before the actionable result screen. Wait
+                # for the actual continue button instead of advancing an animation.
+                if (observation is not None and observation.frame is not None
+                    and _find_action_button_box_from_observation(observation, allowed_texts={"继续挑战", "继续"}) is None):
+                    sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                    continue
+                actions = _battle_resume_state(session).get("settlement_actions") or {}
+                if battle_checkpoint is not None and actions.get("entry"):
+                    sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                    continue
                 if report is not None and observation is not None and observation.frame is not None:
                     stable_settlement = _has_settlement_continue(observation)
                     if not stable_settlement and report.state.get("waiting_for_settlement_animation"):
@@ -1096,6 +1485,20 @@ def run_cw_battle(
                         raise
                 if report is not None and summary:
                     report.state["settlement"] = summary
+                    _battle_resume_state(session)["report"] = report.state
+                    if battle_checkpoint is not None:
+                        battle_checkpoint()
+                    if publish_progress is not None and observation is not None:
+                        publish_progress({"phase": "settlement", "round": summary.get("round"), "progress_pct": report.state.get("settlement_progress_pct"), "hp": summary.get("hp"), "source": "settlement"}, observation.frame)
+                actions = _battle_resume_state(session).setdefault("settlement_actions", {})
+                if battle_checkpoint is not None:
+                    if actions.get("entry"):
+                        sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                        continue
+                    actions["entry"] = True
+                    battle_checkpoint()
+                    if not before_dispatch(lambda: actions.pop("entry", None), battle_checkpoint):
+                        continue
                 _continue_after_settlement(runtime, observation=observation)
                 _mark_cancel_side_effect_applied(cancellation_token)
                 if cancellation_token is not None:
@@ -1103,8 +1506,23 @@ def run_cw_battle(
                 continue
 
             if state == "settle_followup":
-                if report is not None and observation is not None and observation.frame is not None:
+                if (observation is not None and observation.frame is not None
+                    and _find_action_button_box_from_observation(observation, allowed_texts={"下一步", "下一页", "前往结算"}) is None):
+                    sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                    continue
+                if not followup_observed and report is not None and observation is not None and observation.frame is not None:
                     report.observe(runtime, observation.frame, observation.page_ocr_pieces, phase="settlement")
+                actions = _battle_resume_state(session).setdefault("settlement_actions", {})
+                followup_key = "followup:" + next((label for label in ("前往结算", "下一页", "下一步")
+                    if observation is not None and label in observation.page_text), "unknown")
+                if battle_checkpoint is not None:
+                    if actions.get(followup_key):
+                        sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                        continue
+                    actions[followup_key] = True
+                    battle_checkpoint()
+                    if not before_dispatch(lambda: actions.pop(followup_key, None), battle_checkpoint):
+                        continue
                 _advance_settlement_page(runtime, observation=observation)
                 _mark_cancel_side_effect_applied(cancellation_token)
                 if cancellation_token is not None:
@@ -1121,6 +1539,15 @@ def run_cw_battle(
                 continue
 
             if state == "layer_transition":
+                actions = _battle_resume_state(session).setdefault("settlement_actions", {})
+                if battle_checkpoint is not None:
+                    if actions.get("layer_transition"):
+                        sleep(min(CW_BATTLE_RUN_POLL_INTERVAL_SECONDS, remaining))
+                        continue
+                    actions["layer_transition"] = True
+                    battle_checkpoint()
+                    if not before_dispatch(lambda: actions.pop("layer_transition", None), battle_checkpoint):
+                        continue
                 _advance_layer_transition(runtime)
                 _mark_cancel_side_effect_applied(cancellation_token)
                 if cancellation_token is not None:
@@ -1134,7 +1561,12 @@ def run_cw_battle(
                 continue
 
             raise _unknown_battle_state(state=state)
-    except Exception:
-        _store_resume_in_battle(session, enabled=False)
-        _battle_resume_state(session).pop("report", None)
+    except Exception as exc:
+        if isinstance(exc, TrailError) and exc.code == "CW_BATTLE_TEAM_COUNT_INSUFFICIENT":
+            _battle_resume_state(session).pop("start_pending", None)
+            _battle_resume_state(session).pop("start_node", None)
+            if battle_checkpoint is not None:
+                battle_checkpoint()
+        if report is not None and report.state:
+            _battle_resume_state(session)["report"] = report.state
         raise

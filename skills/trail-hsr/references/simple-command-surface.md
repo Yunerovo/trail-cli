@@ -12,8 +12,11 @@
 - 当 `trail cw battle run --session <id>` 返回 `status=completed result=win stage=preparation` 时，说明已经进入下一轮普通备战；响应会自动追加 stage/slots/equipment/shop/crystals/skill_info facts，并通过 handoff 交给 `trail-cw-prep`。先读截图和同次 facts，不要立即重复扫描。
 - 当 `trail cw battle run --session <id>` 返回 `status=completed result=lose stage=game_over stale=0 in_battle=0`，并输出 `info game_over=1 end_reason=global_battle_failed restart_candidate=1 returned_home=1` 时，说明整局已失败结束且命令已点击 `返回货币战争` 回到货币战争主页；先读截图和结算事实，再由当前 scene entry 判断是否重开。
 - battle flow 包含战斗中、结算页、结算翻页但未回到下一稳定阶段；结算页也属于 battle flow，不要因为看到结算页就默认改用旧 `trail cw settle next`。
+- `trail cw settle next --session <id>` 每次只在识别到可操作结算页时推进一次，并等待确认后继页面；`status=in_progress` 表示尚未确认，禁止重复点击。评价页需另一次显式调用才能进入详情。
 - `layer_transition` 表示整层结束后的“点击空白处继续 / 位面”过场；`layer_transition` 仍属于 battle flow，默认继续 `trail cw battle run --session <id>`，不要把它当成真正 `boss_preview`、普通稳定阶段或手工中断点。
-- `trail cw battle run` 默认 timeout 现在是 `90s`；`trail cw battle clear-in-progress --session <id>` 只清 battle.run 的内部续跑提示位，不清 battle 摘要。
+- `trail cw battle run` 默认 timeout 现在是 `90s`；`trail cw battle clear-in-progress --session <id>` 清除普通续跑提示、待确认出战节点和普通结算动作检查点；保留已确认的终局报告与 last_result。
 - 这三个命令属于通用命令表面：它们服务于 `trail-hsr` 或 future `trail-<scene>-entry`，而不是把某个旧 skill 重新抬回 active owner。
 - 当总入口已经无法继续推进且问题落在启动、窗口、request-status、session 或 state 恢复面时，再升级到 `trail-hsr-advanced`，不要把 daemon / window / state 命令直接塞回总入口。
 - owner 路由看 registry 与当前用户意图；基础命令只提供启动、观察、执行动作的能力边界。
+
+- 长战可使用 `trail --no-wait cw battle run --session <id> --timeout 420`，通过 `trail daemon request-status --request-id <job_id>` 查询最近观察，终态通过 `trail daemon request-result --request-id <job_id>` 获取结果；只有业务状态 `in_progress` 时才在读同帧截图后用同一 session 续跑。

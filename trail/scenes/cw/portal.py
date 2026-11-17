@@ -11,7 +11,8 @@ from trail.runtime.model import Box
 from trail.runtime.resources import resolve_scene_asset
 from trail.scenes.cw.entry import _detect_current_enter_page
 from trail.scenes.cw.models import ensure_cw_state
-from trail.scenes.cw.stage import _replace_stage_fields
+from trail.scenes.cw.stage import _replace_stage_fields, _opening_overlay_stage, _read_ocr_piece
+from trail.runtime.ocr_config import OcrRequestConfig
 
 
 PORTAL_SCREEN_WIDTH = 1920
@@ -162,29 +163,71 @@ def restart_cw_portal_to_settlement_entry(session, *, runtime) -> None:
     raise TrailError("CW_PORTAL_RESTART_EXIT_DIALOG_TIMEOUT", "cw portal restart helper failed to reach exit dialog")
 
 
-def wait_cw_portal_in_game(session, *, runtime, after_selection: bool = False) -> dict[str, str]:
-    return _wait_for_portal_page(
-        runtime,
-        session=session,
-        expected_page="in_game",
-        error_code="CW_PORTAL_RESTART_ENTER_GAME_TIMEOUT",
-        error_message="cw portal did not reach in_game after select",
-        max_polls=PORTAL_PREPARATION_MAX_POLLS if after_selection else PORTAL_SETTLE_MAX_POLLS,
-        interval=PORTAL_PREPARATION_INTERVAL if after_selection else PORTAL_SETTLE_INTERVAL,
-    )
+def _wait_after_portal_selection(session, *, runtime, require_preparation: bool) -> dict:
+    # Check the captured frame itself: template detection may see the board
+    # beneath the opening overlay. Never dismiss without the explicit prompt.
+    capable = callable(getattr(runtime, "capture_image", None)) and callable(getattr(runtime, "ocr_image", None))
+    if not capable:
+        current = _wait_for_portal_page(runtime, session=session, expected_page="in_game",
+            expected_stage="preparation" if require_preparation else None,
+            error_code="CW_PORTAL_PREPARATION_TIMEOUT", error_message="cw portal.select did not settle",
+            max_polls=PORTAL_PREPARATION_MAX_POLLS, interval=PORTAL_PREPARATION_INTERVAL)
+        if not require_preparation and current.get("stage") == "preparation":
+            return {**current, "stage": "unknown", "observed_stage": "preparation", "reason": "preparation_unverified"}
+        return current
+    dismissed = False
+    stable = 0
+    current = {"page": "unknown", "stage": "unknown"}
+    voyage_text = []
+    for attempt in range(PORTAL_PREPARATION_MAX_POLLS):
+        frame = runtime.capture_image()
+        pieces = runtime.ocr_image(frame, ocr=OcrRequestConfig(lang="ch")) or []
+        overlay = _opening_overlay_stage(pieces)
+        if overlay:
+            current = {"page": "in_game", "stage": overlay}
+            stable = 0
+            if overlay == "opening_voyage" and not dismissed:
+                voyage_text = [_read_ocr_piece(piece).strip() for piece in pieces if _read_ocr_piece(piece).strip()]
+                runtime.click_point(960, 711)
+                dismissed = True
+        else:
+            current = _detect_current_enter_page(runtime, session=session)
+            if current.get("page") == "in_game" and current.get("stage") == "preparation":
+                stable += 1
+                if stable >= 2:
+                    current = {**current, "preparation_verified": True}
+                    if voyage_text:
+                        current["voyage_text"] = voyage_text
+                    return current
+            else:
+                stable = 0
+                if current.get("page") == "in_game" and current.get("stage") not in (None, "unknown"):
+                    if voyage_text:
+                        current = {**current, "voyage_text": voyage_text}
+                    if not require_preparation:
+                        return current
+        if attempt < PORTAL_PREPARATION_MAX_POLLS - 1:
+            sleep(PORTAL_PREPARATION_INTERVAL)
+    if not require_preparation:
+        if current.get("stage") == "preparation":
+            current = {**current, "stage": "unknown", "observed_stage": "preparation", "reason": "preparation_unverified"}
+        if voyage_text:
+            current = {**current, "voyage_text": voyage_text}
+        return current
+    error = TrailError("CW_PORTAL_PREPARATION_TIMEOUT", "cw portal.select did not settle to in_game preparation before guide apply")
+    error.data = current
+    raise error
+
+
+def wait_cw_portal_in_game(session, *, runtime, after_selection: bool = False) -> dict:
+    if after_selection:
+        return _wait_after_portal_selection(session, runtime=runtime, require_preparation=False)
+    return _wait_for_portal_page(runtime, session=session, expected_page="in_game",
+        error_code="CW_PORTAL_RESTART_ENTER_GAME_TIMEOUT", error_message="cw portal did not reach in_game after select")
 
 
 def wait_cw_portal_preparation(session, *, runtime) -> None:
-    _wait_for_portal_page(
-        runtime,
-        session=session,
-        expected_page="in_game",
-        expected_stage="preparation",
-        error_code="CW_PORTAL_PREPARATION_TIMEOUT",
-        error_message="cw portal.select did not settle to in_game preparation before guide apply",
-        max_polls=PORTAL_PREPARATION_MAX_POLLS,
-        interval=PORTAL_PREPARATION_INTERVAL,
-    )
+    _wait_after_portal_selection(session, runtime=runtime, require_preparation=True)
 
 
 def _empty_card_summary(card_idx: int) -> dict[str, object]:

@@ -637,6 +637,7 @@ def _append_cw_shop_items(lines: list[str], data: dict[str, Any]) -> None:
         name = item.get("name")
         if name is not None:
             facts.append(("name", name))
+        facts.append(("type", item.get("type")))
         suppress_fallback_cost = item.get("uncertain") is True and item.get("stale") is True
         cost = item.get("cost") if item.get("cost") is not None else (None if suppress_fallback_cost else item.get("price"))
         if cost is not None:
@@ -834,6 +835,9 @@ def _render_cw_stage(command: str, payload: dict[str, Any]) -> list[str]:
         payload,
         ("stage", data.get("value")),
         ("stale", stale),
+        ("status", data.get("settle_status") if command == "cw.settle.next" else None),
+        ("source_node", data.get("source_node") if command == "cw.replenish.choose" else None),
+        ("node", data.get("node") if command == "cw.replenish.choose" else None),
     )
 
 
@@ -939,6 +943,14 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
         ("exp", data.get("exp") if "exp" in data else None),
     )
     _append_fact_line(lines, "info", ("settle_text", _non_empty(data.get("settle_text"))))
+    for section in ("evaluation", "terminal", "settlement", "terminal_report"):
+        values = _as_dict(data.get(section))
+        if values:
+            _append_fact_line(lines, "info", ("source", section), *((key, value) for key, value in values.items()
+                                                                   if not isinstance(value, (dict, list))))
+            for key, value in values.items():
+                if isinstance(value, dict):
+                    _append_fact_line(lines, "info", ("source", key), *value.items())
     report = _as_dict(data.get("battle_report"))
     if report:
         goal = report.get("minimum_progress_met")
@@ -952,6 +964,9 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
             ("action_value_events", "unknown" if penalties is None else len(penalties)),
             ("hp_breakdown_items", "unknown" if breakdown is None else len(breakdown)),
         )
+        for field in ("latest_hud_progress_pct", "latest_hud_source", "settlement_progress_pct", "settlement_hp"):
+            if field in report:
+                _append_fact_line(lines, "info", (field, "unknown" if report[field] is None else report[field]))
         for idx, event in enumerate(_as_list(penalties), start=1):
             delta = event.get("delta")
             _append_fact_line(
@@ -992,7 +1007,8 @@ def _render_cw_battle_run(command: str, payload: dict[str, Any]) -> list[str]:
     crystals = _as_dict(data.get("crystals"))
     if crystals:
         _append_fact_line(lines, "info", ("crystal_collection", crystals.get("last_crystal_collection")),
-                          ("collected", crystals.get("collected")), ("visible_remaining", crystals.get("visible_remaining")))
+                          ("collected", crystals.get("collected")), ("visible_remaining", crystals.get("visible_remaining")),
+                          ("reason", crystals.get("reason")))
     current = _as_dict(data.get("current_node"))
     if current:
         _append_fact_line(lines, "info", ("current_stage", current.get("stage")),
@@ -1079,7 +1095,10 @@ def _render_cw_portal_select(command: str, payload: dict[str, Any]) -> list[str]
     ]
     _append_success_capture_block(lines, payload)
     if data.get("status") == "observed":
-        _append_fact_line(lines, "info", ("status", "observed"), ("stage", data.get("stage")))
+        _append_fact_line(lines, "info", ("status", "observed"), ("stage", data.get("stage")),
+                          ("observed_stage", data.get("observed_stage")), ("reason", data.get("reason")))
+        for text in _as_list(data.get("voyage_text")):
+            _append_fact_line(lines, "info", ("voyage_text", text))
     equipment = _append_cw_preparation_sections(lines, data)
     _append_cw_equipment_low_confidence_warning(lines, payload, equipment)
     equipment_stale = equipment.get("stale")
@@ -1110,7 +1129,7 @@ def _render_cw_strategy_cards(command: str, payload: dict[str, Any]) -> list[str
             lines,
             "opt",
             ("idx", card.get("card_idx")),
-            ("投资策略", _non_empty(card.get("strategy_title"))),
+            ("投资策略", _non_empty(card.get("strategy_title")) or "unknown"),
             ("攻略推荐", _non_empty(card.get("guide_match"))),
             ("刷新次数", card.get("refresh_count")),
         )
@@ -1133,7 +1152,7 @@ def _render_cw_strategy_select(command: str, payload: dict[str, Any]) -> list[st
     data = _as_dict(payload.get("data"))
     summary = _format_fact_sequence(
         ("idx", data.get("card_idx")),
-        ("投资策略", _non_empty(data.get("strategy_title"))),
+        ("投资策略", _non_empty(data.get("strategy_title")) or "unknown"),
     )
     lines = [f"ok {command} {summary}" if summary else f"ok {command}"]
     _append_success_capture_block(lines, payload)
@@ -1170,6 +1189,11 @@ def _render_cw_slots_summary_line(command: str, data: dict[str, Any]) -> str:
 
 def _render_cw_slots(command: str, payload: dict[str, Any]) -> list[str]:
     data = _as_dict(payload.get("data"))
+    if command == "cw.slots.place":
+        summary = _format_fact_sequence(("applied_actions", data.get("applied_actions")),
+                                        ("verification", data.get("verification") or "pending"),
+                                        ("stale", True))
+        return _append_common_success_lines([f"ok {command} {summary}"], payload, command)
     return _append_common_success_lines([_render_cw_slots_summary_line(command, data)], payload, command)
 
 
@@ -1465,9 +1489,11 @@ def _render_cw_experience(command: str, payload: dict[str, Any]) -> list[str]:
         "info",
         ("stage", data.get("stage")),
         *((key, data[key] if data[key] is not None else "unknown")
-          for key in ("level", "exp", "coins", "cost_per_purchase", "purchases_required", "gold_required")
+          for key in ("level", "exp", "coins", "price_currency", "displayed_price", "cost_per_purchase", "purchases_required", "gold_required")
           if key in data),
     )
+    if data.get("missing_fields"):
+        _append_fact_line(lines, "info", ("missing_fields", "|".join(data["missing_fields"])))
     if command == "cw.shop.buy_exp_to_level":
         _append_fact_line(lines, "info", ("purchases_attempted", data.get("purchases_attempted")),
                           ("purchases_verified", data.get("purchases_verified")),
@@ -1780,6 +1806,7 @@ def _render_cw_metrics(command: str, payload: dict[str, Any]) -> list[str]:
         payload,
         ("status", data.get("last_crystal_collection")),
         ("stage", data.get("stage")),
+        ("reason", data.get("reason")),
         ("swipes", data.get("swipes")),
         ("collected", data.get("collected")),
         ("visible_remaining", data.get("visible_remaining")),
@@ -2388,6 +2415,13 @@ def _render_daemon_request_status(command: str, payload: dict[str, Any]) -> list
     rendered_facts = _format_fact_sequence(*facts)
     lines = [f"ok {command} {rendered_facts}" if rendered_facts else f"ok {command}"]
 
+    progress = _as_dict(data.get("progress"))
+    if progress:
+        _append_fact_line(lines, "info", *((key, value) for key, value in progress.items()
+                                               if not isinstance(value, (dict, list))))
+        for key, value in progress.items():
+            if isinstance(value, dict):
+                _append_fact_line(lines, "info", ("kind", key), *value.items())
     state = data.get("state")
     session_id = data.get("session_id")
     if state == "cancel_unknown" and session_id:
@@ -2406,7 +2440,7 @@ def _render_daemon_request_status(command: str, payload: dict[str, Any]) -> list
         _append_fact_line(
             lines,
             "info",
-            ("next_action", active_command),
+            ("next_action", "daemon.request_status" if active_command == "cw.battle.run" else active_command),
             ("request", active_request),
             ("session", data.get("active_session")),
         )
@@ -2658,7 +2692,8 @@ def _render_daemon_busy_failure(payload: dict[str, Any]) -> list[str]:
     _append_fact_line(
         lines,
         "recover",
-        ("action", data.get("recover_action") or data.get("active_command")),
+        ("action", "daemon.request_status" if data.get("active_command") == "cw.battle.run"
+         else data.get("recover_action") or data.get("active_command")),
         ("request", data.get("active_request")),
         ("session", data.get("active_session")),
     )

@@ -92,7 +92,7 @@ def test_gold_icon_template_rejects_blank_shifted_or_unrelated_icon():
     assert experience._has_gold_price_icon(frame)
     for replacement, position in [(Image.new("RGB", icon.size, "black"), (268, 985)),
                                   (Image.new("RGB", icon.size, "red"), (268, 985)),
-                                  (icon, (276, 985))]:
+                                  (icon, (277, 985))]:
         bad = Image.new("RGB", (1920, 1080), "black")
         bad.paste(replacement, position)
         assert not experience._has_gold_price_icon(bad)
@@ -118,3 +118,24 @@ def test_missing_price_after_verified_step_returns_partial_without_retry(monkeyp
     calls = arrange(monkeypatch, [obs(exp="64/72", coins=10), after])
     result, _ = experience.buy_cw_experience_to_level(None, opening=AFFIX, target_level=9, max_gold=None, check_cancelled=lambda: None)
     assert (result["status"], result["purchases_attempted"], result["purchases_verified"], result["gold_spent"], calls) == ("partial", 1, 1, 5, ["click"])
+
+
+def test_gold_icon_accepts_observed_small_shift():
+    from pathlib import Path
+    from PIL import Image
+    icon = Image.open(Path(experience.__file__).with_name("assets") / "experience_gold.png").convert("RGB")
+    frame = Image.new("RGB", (1920, 1080), "black")
+    frame.paste(icon, (271, 989))
+    assert experience._has_gold_price_icon(frame)
+
+
+def test_missing_fields_are_individually_reported():
+    result = experience._plan({**obs(), "exp": None, "coins": None, "price_currency": None, "displayed_price": None}, AFFIX, 9)
+    assert result["missing_fields"] == ["exp", "coins", "price_currency", "displayed_price"]
+
+
+def test_early_level_real_quotes():
+    a = experience._plan(obs(5, "6/20", 17), {}, 6)
+    b = experience._plan(obs(6, "20/40", 20), {}, 7)
+    assert (a["purchases_required"], a["gold_required"]) == (4, 16)
+    assert (b["purchases_required"], b["gold_required"]) == (5, 20)

@@ -462,7 +462,8 @@ class RequestExecutor:
                 debug={"request_id": request.call_id},
             )
         service = self.session_service.for_workspace(request.workspace_root)
-        job = self._find_job_across_workspaces(service, request_id)
+        job_id, _, _ = self._resolve_job_for_request_id(service, request_id)
+        job = self._find_job_across_workspaces(service, job_id)
         if job is None:
             return command_failure(
                 code="REQUEST_NOT_FOUND",
@@ -763,8 +764,14 @@ class RequestExecutor:
         session_id = _session_id_for_request(request)
         lock_session_id = None if request.method == "session.create" else session_id
         use_lease = _requires_session_mutation_lease(request, resolved_session_id=session_id)
+        def publish_progress(progress):
+            service.update_running_job(job_id, progress=progress,
+                                       side_effect_stage=getattr(request.control.cancellation_token, "side_effect_stage", "none"))
+
+        request.control.cancellation_token.publish_progress = publish_progress
         try:
             request.control.cancellation_token.throw_if_cancelled()
+            service.update_running_job(job_id)
             if use_lease:
                 with service.session_mutation_lock(lock_session_id):
                     envelope = self._run_business_handler(request)
@@ -859,7 +866,12 @@ class RequestExecutor:
         session_id: str | None,
     ) -> dict:
         final_state = "failed_before_side_effect" if not envelope.get("ok", False) else "completed"
+        # Mutating commands maintain an authoritative inner journal using the job ID.
+        inner = None
         try:
+            inner = service._load_record(job_id)
+            if inner and inner.get("final_state"):
+                final_state = inner["final_state"]
             self._persist_completed_job(
                 service,
                 request,
@@ -869,6 +881,7 @@ class RequestExecutor:
                 envelope,
                 session_id=session_id,
                 final_state=final_state,
+                inner=inner,
             )
         except Exception as error:
             unknown = command_failure(
@@ -900,15 +913,19 @@ class RequestExecutor:
         *,
         session_id: str | None,
         final_state: str = "completed",
+        inner: dict | None = None,
     ) -> None:
+        side_effect_stage = "state_persisted" if final_state == "completed" else "none"
+        if inner:
+            side_effect_stage = {"applied_but_not_persisted": "side_effect_applied", "persisted_but_response_unknown": "state_persisted"}.get(final_state, side_effect_stage)
         service.finish_job_record(
             job_id,
             state="completed" if final_state == "completed" else "failed",
             final_state=final_state,
-            last_visible_stage="responded",
-            side_effect_stage="state_persisted",
+            last_visible_stage=(inner or {}).get("last_visible_stage", "responded"),
+            side_effect_stage=side_effect_stage,
             envelope=envelope,
-            tainted=False,
+            tainted=bool((inner or {}).get("tainted", False)),
         )
         if session_id is not None:
             self._write_session_result(service, session_id=session_id, command=request.method, envelope=envelope)

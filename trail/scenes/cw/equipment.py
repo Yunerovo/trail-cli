@@ -622,6 +622,7 @@ def validate_cw_equipment_compose_preflight(
     role: str,
     raw_config: dict[str, Any] | None = None,
     workspace_root: str | Path | None = None,
+    allow_without_guide: bool = False,
 ) -> dict[str, Any]:
     equipment_name = str(name or "").strip()
     role_name = str(role or "").strip()
@@ -632,7 +633,7 @@ def validate_cw_equipment_compose_preflight(
 
     scene_state = session.scene_state.get("cw")
     cw_state = scene_state if isinstance(scene_state, dict) else {}
-    guide = require_complete_cw_guide(cw_state)
+    guide = (complete_cw_guide_or_none(cw_state) or {}) if allow_without_guide else require_complete_cw_guide(cw_state)
     slots = cw_state.get("slots")
     if not isinstance(slots, dict) or slots.get("stale") is not False:
         raise TrailError("CW_EQUIPMENT_ROLE_SLOT_STALE", "当前角色槽位已过期，请先执行 cw.slots.read")
@@ -1002,6 +1003,7 @@ def compose_and_equip_cw_equipment(
         role=role,
         raw_config=raw_config,
         workspace_root=workspace_root,
+        allow_without_guide=True,
     )
 
     with read_scope():

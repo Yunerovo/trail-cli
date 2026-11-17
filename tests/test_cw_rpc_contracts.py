@@ -1274,12 +1274,12 @@ def test_cw_guide_apply_rejects_legacy_cli_flags():
     assert "--guide" not in option_decls
 
 
-def test_cw_slots_place_renders_slot_counts_and_shot(cli_runner, fake_daemon_client, tmp_path):
+def test_cw_slots_place_renders_applied_actions_and_shot(cli_runner, fake_daemon_client, tmp_path):
     client = fake_daemon_client(
         {
             "cw.slots.place": build_success_response(
                 request_id="req-cw-slots-place",
-                data={"front": ["希儿"], "back": ["佩拉"], "hand": [], "stale": True},
+                data={"front": ["希儿"], "back": ["佩拉"], "hand": [], "stale": True, "applied_actions": 2, "verification": "pending"},
                 screenshot=".trail/shots/req-cw-slots-place.png",
             )
         }
@@ -1302,7 +1302,7 @@ def test_cw_slots_place_renders_slot_counts_and_shot(cli_runner, fake_daemon_cli
 
     assert result.exit_code == 0
     assert result.stdout.splitlines() == _expected_lines(
-        "ok cw.slots.place front=1 back=1 hand=0 stale=1",
+        "ok cw.slots.place applied_actions=2 verification=pending stale=1",
         screenshot=".trail/shots/req-cw-slots-place.png",
     )
     _assert_single_call(

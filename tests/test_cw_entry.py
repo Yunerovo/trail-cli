@@ -2248,7 +2248,7 @@ def test_cw_enter_mutation_rejects_tainted_session_until_reconciled(tmp_path: Pa
     assert blocked["ok"] is False
     assert blocked["error"] == {
         "code": "SESSION_RECONCILE_REQUIRED",
-        "message": "session is tainted; reconcile before mutating cw commands",
+        "message": f"session is tainted; run trail daemon reconcile-session --session {session.session_id}",
     }
     assert enter_calls == []
 
@@ -2320,7 +2320,7 @@ def test_cw_enter_duplicate_terminal_replay_precedes_tainted_gate(tmp_path: Path
     assert blocked["ok"] is False
     assert blocked["error"] == {
         "code": "SESSION_RECONCILE_REQUIRED",
-        "message": "session is tainted; reconcile before mutating cw commands",
+        "message": f"session is tainted; run trail daemon reconcile-session --session {session.session_id}",
     }
     assert enter_calls == []
 

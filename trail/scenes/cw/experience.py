@@ -24,13 +24,20 @@ def _has_gold_price_icon(frame):
     reference_path = Path(__file__).with_name("assets") / "experience_gold.png"
     with Image.open(reference_path) as reference:
         expected = np.asarray(reference.convert("RGB"), dtype=np.float32).reshape(-1)
-    actual = np.asarray(frame.crop((268, 985, 302, 1018)).convert("RGB"), dtype=np.float32).reshape(-1)
-    actual_centered = actual - actual.mean()
     expected_centered = expected - expected.mean()
-    denominator = float(np.linalg.norm(actual_centered) * np.linalg.norm(expected_centered))
-    similarity = float(np.dot(actual_centered, expected_centered) / denominator) if denominator else 0.0
-    error = float(np.mean(np.abs(actual - expected)))
-    return similarity >= 0.80 and error <= 32.0
+    expected_norm = float(np.linalg.norm(expected_centered))
+    # The purchase control moves by a few pixels between UI states. Keep the
+    # search tightly bounded around the known price icon, never the balance.
+    for y in range(980, 991):
+        for x in range(263, 274):
+            actual = np.asarray(frame.crop((x, y, x + 34, y + 33)).convert("RGB"), dtype=np.float32).reshape(-1)
+            actual_centered = actual - actual.mean()
+            denominator = float(np.linalg.norm(actual_centered)) * expected_norm
+            similarity = float(np.dot(actual_centered, expected_centered) / denominator) if denominator else 0.0
+            error = float(np.mean(np.abs(actual - expected)))
+            if similarity >= 0.80 and error <= 32.0:
+                return True
+    return False
 
 def _observe(runtime):
     """Read all decision facts from one normalized, freshly captured frame."""
@@ -92,8 +99,14 @@ def _plan(observation, opening, target_level):
     result = {"status": "unknown", "target_level": target_level, "level": observation.get("level"),
               "exp": observation.get("exp"), "coins": observation.get("coins"),
               "cost_per_purchase": None, "purchases_required": None, "gold_required": None,
-              "purchases_verified": 0, "purchases_attempted": 0, "gold_spent": 0, "stage": observation.get("stage"), "reason": None}
+              "purchases_verified": 0, "purchases_attempted": 0, "gold_spent": 0, "stage": observation.get("stage"), "reason": None,
+              "price_currency": observation.get("price_currency"), "displayed_price": observation.get("displayed_price"),
+              "missing_fields": []}
     level, coins, exp = result["level"], result["coins"], result["exp"]
+    result["missing_fields"] = [name for name, value in (
+        ("level", level), ("exp", exp), ("coins", coins),
+        ("price_currency", observation.get("price_currency")),
+        ("displayed_price", observation.get("displayed_price"))) if value is None]
     if not observation.get("valid") or type(level) is not int or level < 1 or type(target_level) is not int or target_level < 1:
         result["reason"] = "page_or_level_unavailable"
         return result

@@ -15,6 +15,7 @@ from trail.daemon.protocol import PROTOCOL_VERSION
 from trail.daemon.session_service import SessionServiceRegistry
 from trail.runtime.model import Box
 from trail.runtime.resources import resolve_scene_asset
+from trail.scenes.cw import portal as portal_module
 from trail.scenes.cw.portal import summarize_portal_cards
 
 
@@ -2655,3 +2656,80 @@ def test_cw_start_rejects_in_game_page(tmp_path: Path, monkeypatch):
         "message": "cw start only supports home, pre-invest pages, or invest, current page: in_game, stage: shop",
     }
     assert status["final_state"] == "failed_before_side_effect"
+
+
+def test_opening_modal_and_supply_outrank_stale_preparation():
+    from trail.scenes.cw import stage
+    assert stage._stage_from_ocr_pieces([{"text": "备战阶段"}, {"text": "本局奇遇"}, {"text": "点击空白处继续"}]) == "opening_voyage"
+    assert stage._stage_from_ocr_pieces([{"text": "备战阶段"}, {"text": "开局补给"}]) == "opening_supply"
+
+
+def test_portal_wait_dismisses_only_explicit_voyage_and_waits_for_stable_preparation(monkeypatch):
+    class Runtime:
+        def __init__(self):
+            self.frames = iter([
+                [{"text": "备战阶段"}, {"text": "本局奇遇"}, {"text": "点击空白处继续"}],
+                [{"text": "开局补给"}, {"text": "备战阶段"}],
+                [{"text": "备战阶段"}], [{"text": "备战阶段"}],
+            ])
+            self.clicks = []
+        def capture_image(self): return next(self.frames)
+        def ocr_image(self, image, **kwargs): return image
+        def click_point(self, *point): self.clicks.append(point)
+    runtime = Runtime()
+    monkeypatch.setattr(portal_module, "sleep", lambda _: None)
+    monkeypatch.setattr(portal_module, "_detect_current_enter_page", lambda *args, **kwargs: {"page": "in_game", "stage": "preparation"})
+    result = portal_module.wait_cw_portal_in_game(None, runtime=runtime, after_selection=True)
+    assert result["stage"] == "preparation"
+    assert "本局奇遇" in result["voyage_text"]
+    assert runtime.clicks == [(960, 711)]
+
+
+def test_portal_wait_reports_observed_transition_when_it_does_not_clear(monkeypatch):
+    class Runtime:
+        def capture_image(self): return None
+        def ocr_image(self, image, **kwargs): return [{"text": "开局补给"}]
+        def click_point(self, *point): raise AssertionError("unexpected click")
+    monkeypatch.setattr(portal_module, "sleep", lambda _: None)
+    monkeypatch.setattr(portal_module, "PORTAL_PREPARATION_MAX_POLLS", 2)
+    assert portal_module.wait_cw_portal_in_game(None, runtime=Runtime(), after_selection=True)["stage"] == "opening_supply"
+
+
+def test_portal_single_preparation_poll_is_unverified(monkeypatch):
+    class Runtime:
+        def capture_image(self): return None
+        def ocr_image(self, image, **kwargs): return [{"text": "备战阶段"}]
+    monkeypatch.setattr(portal_module, "PORTAL_PREPARATION_MAX_POLLS", 1)
+    monkeypatch.setattr(portal_module, "_detect_current_enter_page", lambda *args, **kwargs: {"page": "in_game", "stage": "preparation"})
+    result = portal_module.wait_cw_portal_in_game(None, runtime=Runtime(), after_selection=True)
+    assert result["stage"] == "unknown"
+    assert result["observed_stage"] == "preparation"
+    assert result["reason"] == "preparation_unverified"
+
+
+@pytest.mark.parametrize("verified", [True, False])
+def test_no_guide_select_collects_only_after_verified_preparation(tmp_path, monkeypatch, verified):
+    runtime = PortalRuntime()
+    _, service, session, command_service = _build_cw_harness(tmp_path, runtime=runtime, cw_resource_service=_FastSlotsResourceService())
+    session.scene_state["cw"] = {"portal": {"cards": _portal_cards(), "stale": False}}
+    service.save_session(session)
+    monkeypatch.setattr("trail.daemon.cw_service.select_cw_portal", lambda session, card_idx, runtime: _portal_cards()[0])
+    result = {"page": "in_game", "stage": "preparation", "preparation_verified": True, "voyage_text": ["本局奇遇"]} if verified else {"page": "in_game", "stage": "unknown", "observed_stage": "preparation", "reason": "preparation_unverified"}
+    monkeypatch.setattr("trail.daemon.cw_service.wait_cw_portal_in_game", lambda *args, **kwargs: result)
+    calls = []
+    def collect(session, **kwargs):
+        calls.append(kwargs["order"])
+        return {**kwargs["response_data"], "slots": {"stale": False}}
+    monkeypatch.setattr("trail.daemon.cw_service._collect_cw_preparation_facts", collect)
+    envelope = _run_cw_portal_mutation(command_service=command_service, session=session, workspace_root=tmp_path,
+        request_id=f"no-guide-{verified}", method="cw.portal.select", payload={"card_idx": 1, "apply_guide": False})
+    assert envelope["ok"] is True
+    if verified:
+        from trail.daemon.cw_service import PORTAL_SELECT_PREP_COLLECT_ORDER
+        assert calls == [PORTAL_SELECT_PREP_COLLECT_ORDER]
+        assert envelope["data"]["slots"]["stale"] is False
+        assert envelope["data"]["voyage_text"] == ["本局奇遇"]
+    else:
+        assert calls == []
+        assert envelope["data"]["stage"] == "unknown"
+        assert envelope["data"]["reason"] == "preparation_unverified"

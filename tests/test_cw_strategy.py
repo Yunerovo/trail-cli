@@ -904,3 +904,29 @@ def test_refresh_cw_strategy_clicks_located_refresh_icon_within_target_lane(tmp_
             {"from_x": 1 / 3, "from_y": 0.72, "to_x": 2 / 3, "to_y": 0.92},
         )
     ]
+
+
+def test_current_invest_layout_preserves_unknown_and_plus_ocr():
+    strategy = load_cw_strategy_module()
+    pieces = [
+        {"text": "三费援军", "center": [460, 496]},
+        {"text": "打捞人才库+", "center": [960, 496]},
+        {"text": "公司军火更新·银", "center": [1460, 496]},
+        {"text": "获得1个随机简易装备和4金币", "center": [960, 600]},
+    ]
+    cards = strategy.summarize_strategy_cards(pieces, [{"title": "打捞人才库", "description": "旧效果"}])
+    assert [(card["card_idx"], card["strategy_title"]) for card in cards] == [
+        (1, "三费援军"), (2, "打捞人才库+"), (3, "公司军火更新·银")]
+    assert "获得1个随机简易装备和4金币" in cards[1]["strategy_description"]
+
+
+def test_invest_missing_title_retains_lane_only_with_effect_and_refresh():
+    strategy = load_cw_strategy_module()
+    pieces = [{"text": "三费援军", "center": [460, 496]},
+              {"text": "公司军火更新·银", "center": [1460, 496]},
+              {"text": "获得金币", "center": [960, 560]},
+              {"text": "刷新次数1", "center": [960, 865]}]
+    cards = strategy.summarize_strategy_cards(pieces, [])
+    assert [(c["card_idx"], c["strategy_title"]) for c in cards] == [
+        (1, "三费援军"), (2, None), (3, "公司军火更新·银")]
+    assert [c["card_idx"] for c in strategy.summarize_strategy_cards(pieces[:-1], [])] == [1, 3]

@@ -367,6 +367,23 @@ class SessionService:
             return self._save_job_record(record)
 
 
+    def update_running_job(self, job_id: str, *, progress=None, side_effect_stage="none") -> dict:
+        with self._mutex:
+            record = self._load_job_record(job_id)
+            if record is None:
+                raise TrailError("REQUEST_NOT_FOUND", f"request not found: {job_id}")
+            if record.get("final"):
+                return record
+            if record.get("state") != "cancel_requested":
+                record["state"] = "running"
+                record["last_visible_stage"] = "executing"
+            if progress is not None:
+                record["progress"] = to_jsonable(progress)
+            if side_effect_stage not in (None, "", "none") and record.get("side_effect_stage") in (None, "", "none"):
+                record["side_effect_stage"] = side_effect_stage
+            record["updated_at"] = _utc_now()
+            return self._save_job_record(record)
+
     def finish_job_record(
         self,
         job_id: str,
@@ -442,7 +459,7 @@ class SessionService:
             return
         raise TrailError(
             "SESSION_RECONCILE_REQUIRED",
-            "session is tainted; reconcile before mutating cw commands",
+            f"session is tainted; run trail daemon reconcile-session --session {session_id}",
         )
 
     def mark_session_tainted(self, session_id: str | None) -> None:
@@ -570,7 +587,7 @@ class SessionService:
             self._save_record(record)
 
     def _status_from_job_record(self, job: dict) -> dict:
-        return {
+        status = {
             "request_id": job["job_id"],
             "job_id": job.get("job_id"),
             "method": job["method"],
@@ -586,6 +603,9 @@ class SessionService:
             "updated_at": job.get("updated_at"),
             "next_request_id": job["job_id"],
         }
+        if "progress" in job:
+            status["progress"] = deepcopy(job["progress"])
+        return status
 
     def _status_from_call_record(self, call: dict, job: dict | None = None) -> dict:
         source = job or call
@@ -606,6 +626,8 @@ class SessionService:
             "updated_at": source.get("updated_at", call.get("updated_at")),
             "next_request_id": call.get("job_id") or call["call_id"],
         }
+        if "progress" in source:
+            status["progress"] = deepcopy(source["progress"])
         for key in ("active_request", "active_command", "active_session", "rejection_code"):
             if key in call:
                 status[key] = call[key]

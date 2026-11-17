@@ -119,7 +119,7 @@
 - `cw.portal.select` 的首行仍固定为 `ok cw.portal.select idx=... 投资环境=...`；自动收集得到的 shop `opened/stale` 不进入首行，也不作为 body 事实渲染，避免与最终已关闭商店的页面状态冲突。
 - `cw.portal.select` 命中 workflow handoff 时，success 最后一行必须是 `info handoff_skill=trail-cw-prep handoff_strength=strong handoff_reason=preparation_stage_entered`。
 - `cw.strategy.detect|refresh` success 首行固定为 `ok cw.strategy.<...> cards=<n>`。
-- `cw.strategy.select` success 首行固定为 `ok cw.strategy.select idx=... 投资策略=...`。
+- `cw.strategy.select` success 首行固定为 `ok cw.strategy.select idx=... 投资策略=...`；仅在可靠的三栏位置证据下，标题未识别时使用 `投资策略=unknown`。
 - `cw.strategy.detect|refresh` 的 cards family 正文字段固定使用 `投资策略/攻略推荐/刷新次数`；说明继续使用 `opt idx=... 说明=...`。
 - `cw.strategy.detect|refresh` 必须输出 `info 已加载攻略=0|1`，且固定在所有 `opt` 行之后。
 - `cw.equipment.read` 归入列表读取 renderer 家族；canonical command 固定为 `cw.equipment.read`，success 首行固定为 `ok cw.equipment.read count=<n> uncertain=<n> empty=<n>`，`count/uncertain/empty` 即使为 `0` 也必须保留。
@@ -144,13 +144,16 @@
 - `cw.shop.plan_exp` 只读当前画面，输出 `status/target_level`、等级、经验、余额、每次实际价格、所需笔数和总价；支持 YAML 以保留未知值。指定 `cw shop buy-exp --target-level N` 使用 `cw.shop.buy_exp_to_level`，可另传 `--max-gold`，每次输入后核对经验和余额。回包保留已核实的 `purchases_verified/gold_spent`，包括 0；`unconfirmed` 时查看截图和余额再决定后续动作。
 - `cw.battle.run` 属于检测/状态摘要 renderer 家族；success 首行固定使用 `ok cw.battle.run status=... result=... stage=... stale=... in_battle=...` 的顺序，缺失语义值按默认省略规则处理。
 - `cw.battle.run` 和 `cw.battle.replay` 返回 `battle_report`。结果 `ended` 对应只有「挑战结束」的画面，`lose` 可由「未完成进度伤害」确认。战中行动值变化与战后生命值明细各用 `item` 行报告，进度及是否达标用 `info`。未知值在文本为 `unknown`，在 YAML 为 `null`。两条命令均支持 YAML。
+- 长战 `daemon.request_status` 的 `progress` 是最近一次已确认观察，文本 `info` 保留阶段、来源、节点、HUD、`observed_at` 和证据路径，不触发游戏输入或抓屏；状态查询与结果回放按 job/call ID，终态使用 `daemon.request_result`。
+- `cw.battle.run` 的战中 HUD、结算和整局终局评价/详情分别保留来源和证据；普通战报文本保留 `latest_hud_progress_pct`、`latest_hud_source`、`settlement_progress_pct`、`settlement_hp`，未知与 0 区分。整局胜利 `stage=game_over result=win` 停留终局详情，不能推断已返回主页；评价与详情分别以 `info source=...` 输出，YAML 保留结构。
+- 后台 job 完成只表示该次调用结束，业务 `status=in_progress` 需先读同帧证据再以同 session 续跑；daemon 进程退出后的旧 running job 不自动归档。
 - `cw.battle.run` 的 `status=in_progress` success 必须输出 `info next_action=cw.battle.run why=battle_flow_not_finished`，提示 Agent 先看截图并在仍处于 battle flow 时重跑 `cw.battle.run`。
 - `cw.battle.run` 的整局失败结算 success 固定收口为 `status=completed result=lose stage=game_over stale=0 in_battle=0`，会点击 `返回货币战争` 回到货币战争主页，并输出 `info game_over=1 end_reason=global_battle_failed restart_candidate=1 returned_home=1`；能识别到 `round/hp/score/promotion_points/settle_text` 时按既有 `info` 行补充，供 Agent 判断是否重开。
 - `cw.battle.run` 在 `status=completed stage=preparation` 时会自动收集普通备战 facts，追加与 `cw.portal.select` 同类的 stage/slots/equipment/shop/crystals/skill_info 信息；为节约时间，`cw.battle.run` 使用 `crystals -> slots -> shop -> equipment` 顺序，`cw.portal.select` 保持 `crystals -> slots -> equipment -> shop` 顺序。
 - `cw.battle.run --stop-at-plane` 保留本场战报并在位面入口返回 `status=completed stage=layer_transition`。下一节点的 `current_node` 独立于战报 `round`。若停在可读决策页面，返回该页文字和位置。晶矿阶段检测到拦截页时停止后续采集。
 - `cw.battle.run` 只有 `status=completed stage=preparation` 才命中 workflow handoff；`game_over`、`settle`、`layer_transition` 或 `in_progress` 不得触发 `trail-cw-prep`。
 - `cw.battle.clear_in_progress` canonical command 固定为 `cw.battle.clear_in_progress`，归入检测/状态摘要 renderer 家族；success 首行固定为 `ok cw.battle.clear_in_progress cleared=0|1`。
-- `cw.battle.clear_in_progress` 只清 battle.run 的内部续跑与待确认出战提示，不清 battle 摘要、`last_result`、`last_screenshot` 或阶段事实；它不产出截图，不加入 YAML allowlist。
+- `cw.battle.clear_in_progress` 只清 battle.run 的普通续跑字段（战中提示、待确认出战和节点、普通战报及结算动作检查点），保留已确认的终局报告、`last_result`、`last_screenshot` 和阶段事实；它不产出截图，不加入 YAML allowlist。
 - `cw.shop.scan|status` 的 stage 投影固定使用 `stage_level/stage_exp/stage_team_size/stage_status_stale`，属于既有 `info` 行，不新增正文前缀。
 - `cw.shop.scan|status` 必须保留 `stage_status_stale=0|1`；只有 `stage_status_stale=0` 时才允许输出 `stage_level/stage_exp/stage_team_size`，stale 或缺失时不得把旧值渲染成有效事实。
 - `cw.shop.status 不产出截图`，也不输出 `info read_image_first=1`；它只读取 session / artifact 汇总，不得为了 status 补图。
@@ -191,3 +194,5 @@
 - `AGENTS.md` 的 active 拓扑说明不得出现 archive skill 名称或 legacy 场景 skill 名称。
 - 任何 active skill 都不得直接或间接调用 archive skill。
 - 仍然禁止 legacy 货币战争 archive skill 回流为 active owner、默认 owner 或推荐入口。
+
+- `cw.replenish.choose` 确认补给后仅在连续两帧读到前进的备战节点时返回 `stage=preparation stale=0 source_node=... node=...`。

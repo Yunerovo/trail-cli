@@ -394,7 +394,18 @@ def _season_two_decision_stage(pieces: list[Any], *, battle_start_found: bool = 
     return None
 
 
+def _opening_overlay_stage(pieces: list[Any]) -> str | None:
+    text = _normalized_ocr_text(pieces)
+    if "本局奇遇" in text and "点击空白处继续" in text:
+        return "opening_voyage"
+    if "开局补给" in text:
+        return "opening_supply"
+    return None
+
+
 def _stage_from_ocr_pieces(pieces: list[Any]) -> str | None:
+    if stage := _opening_overlay_stage(pieces):
+        return stage
     if stage := _season_two_decision_stage(pieces):
         return stage
     if _is_layer_transition_from_ocr(pieces):
@@ -551,6 +562,8 @@ def build_cw_stage_detector(runtime):
         ).by_key[blank_continue_target.key]
         if blank_continue_result.found:
             ocr_items = _read_blank_continue_ocr(runtime, shared_image)
+            if stage := _opening_overlay_stage(ocr_items):
+                return stage
             if stage := _season_two_decision_stage(ocr_items):
                 return stage
             if _is_season_two_opening_overview(ocr_items):
@@ -575,7 +588,8 @@ def build_cw_stage_detector(runtime):
             trace_prefix="cw_stage_battle_start_locate",
         ).by_key[battle_start_target.key]
         if battle_start_result.found:
-            return _season_two_decision_stage(_read_blank_continue_ocr(runtime, shared_image), battle_start_found=True) or "preparation"
+            pieces = _read_blank_continue_ocr(runtime, shared_image)
+            return _opening_overlay_stage(pieces) or _season_two_decision_stage(pieces, battle_start_found=True) or "preparation"
 
         locate_result = run_batch_locate(
             runtime,

@@ -1453,7 +1453,7 @@ def test_server_handle_payload_rejects_guide_fetch_select_when_session_is_tainte
     assert response["ok"] is False
     assert response["error"] == {
         "code": "SESSION_RECONCILE_REQUIRED",
-        "message": "session is tainted; reconcile before mutating cw commands",
+        "message": f"session is tainted; run trail daemon reconcile-session --session {session.session_id}",
     }
     assert response["debug"] == {
         "request_id": "req-guide-fetch-select-session-tainted",
@@ -8643,7 +8643,10 @@ def test_command_service_clear_in_progress_preserves_last_battle_summary(tmp_pat
         "error": None,
     }
     session.last_screenshot = ".trail/shots/req-battle.png"
-    ensure_cw_state(session)["battle_resume"] = {"in_battle_hint": True}
+    terminal = {"evaluation": {"result": "win", "evidence": "evaluation.jpg"}}
+    ensure_cw_state(session)["battle_resume"] = {"in_battle_hint": True, "start_pending": True,
+        "start_node": "3-4", "report": {"round": "3-4"}, "settlement_actions": {"continue": True},
+        "terminal": terminal}
     ensure_cw_state(session)["stage"] = {"stale": True}
     session.last_stage = {"scene": "cw", "value": "shop"}
     session_service.save_session(session)
@@ -8671,7 +8674,7 @@ def test_command_service_clear_in_progress_preserves_last_battle_summary(tmp_pat
     assert refreshed.last_screenshot == session.last_screenshot
     assert ensure_cw_state(refreshed).get("stage") == {"stale": True}
     assert refreshed.last_stage == {"scene": "cw", "value": "shop"}
-    assert ensure_cw_state(refreshed).get("battle_resume") == {}
+    assert ensure_cw_state(refreshed).get("battle_resume") == {"terminal": terminal}
 
 
 def test_command_service_clear_in_progress_without_hint_preserves_last_battle_summary(tmp_path: Path):
@@ -10754,3 +10757,74 @@ def test_trail_daemon_client_call_keeps_timeout_mapping_on_real_path(monkeypatch
     assert ocr_payload["ok"] is True
     assert methods == ["cw.battle.run", "ocr.read"]
     assert settimeouts == [105.0, 105.0]
+
+
+def test_battle_checkpoints_persist_distinct_sources_and_progress_is_best_effort(tmp_path: Path, monkeypatch):
+    from PIL import Image
+    from trail.daemon.cw_service import CwService
+    from trail.daemon.models import CancellationToken
+    from trail.scenes.cw.models import ensure_cw_state
+
+    registry = SessionServiceRegistry()
+    service = registry.for_workspace(str(tmp_path))
+    session = service.create_session(window_binding={"title": "test", "hwnd": 1})
+    paths = []
+    class Runtime:
+        def save_capture_image_to_workspace(self, frame, request_id=None):
+            path = tmp_path / ".trail" / "shots" / f"{request_id}.png"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            frame.save(path)
+            paths.append(path)
+            return path
+    runtime = Runtime()
+    token = CancellationToken()
+    progress = []
+    token.publish_progress = lambda value: progress.append(value)
+    frame = Image.new("RGB", (2, 2), "red")
+
+    def battle(session, *, runtime, timeout, terminal_checkpoint, battle_checkpoint, publish_progress, **kwargs):
+        publish_progress({"source": "battle_hud", "round": "3-4", "progress_pct": 67}, frame)
+        publish_progress({"source": "battle_hud", "round": "3-4", "progress_pct": 68}, frame)
+        terminal = {"evaluation": {"result": "win"}, "detail": {"result": "win"}}
+        terminal_checkpoint(terminal, frame, "evaluation")
+        terminal_checkpoint(terminal, frame, "detail")
+        assert service.load_session(session.session_id).scene_state["cw"]["battle_resume"]["terminal"] == terminal
+        ensure_cw_state(session)["battle_resume"]["start_pending"] = True
+        battle_checkpoint()
+        assert service.load_session(session.session_id).scene_state["cw"]["battle_resume"]["start_pending"]
+        token.publish_progress = lambda value: (_ for _ in ()).throw(OSError("journal unavailable"))
+        publish_progress({"source": "settlement", "round": "3-5"}, frame)
+        return {"status": "in_progress", "stage": "battle"}
+
+    monkeypatch.setattr("trail.daemon.cw_service.run_cw_battle", battle)
+    cw = CwService(runtime_service=SimpleNamespace(get_runtime=lambda **kwargs: runtime))
+    _, _, _, handlers, _, _, _ = cw._context(method="cw.battle.run", payload={"session_id": session.session_id},
+        workspace_root=str(tmp_path), session_service=service, request_id="job-a", cancellation_token=token)
+    assert handlers["cw.battle.run"]()["status"] == "in_progress"
+    terminal = ensure_cw_state(service.load_session(session.session_id))["battle_resume"]["terminal"]
+    assert terminal["evaluation"]["evidence"] != terminal["detail"]["evidence"]
+    assert all(not Path(terminal[k]["evidence"]).is_absolute() for k in ("evaluation", "detail"))
+    assert len(progress) == 1 and progress[0]["progress_pct"] == 67
+    assert progress[0]["evidence"] != terminal["evaluation"]["evidence"]
+    assert len({str(path) for path in paths}) == len(paths)
+
+
+@pytest.mark.parametrize("resume", [{"start_pending": True}, {"in_battle_hint": True},
+                                    {"report": {"round": "3-4"}}, {"terminal": {"next_attempted": True}}])
+def test_battle_resume_skips_optional_armor_preflight(tmp_path: Path, monkeypatch, resume):
+    from trail.daemon.cw_service import CwService
+    from trail.scenes.cw.models import ensure_cw_state
+    registry = SessionServiceRegistry()
+    service = registry.for_workspace(str(tmp_path))
+    session = service.create_session(window_binding={"title": "test", "hwnd": 1})
+    ensure_cw_state(session)["battle_resume"] = resume
+    service.save_session(session)
+    class Runtime:
+        def capture_image(self):
+            raise AssertionError("resume must not run armor preflight")
+    monkeypatch.setattr("trail.daemon.cw_service.read_cw_preparation_header", lambda runtime: (_ for _ in ()).throw(AssertionError("preflight")))
+    monkeypatch.setattr("trail.daemon.cw_service.run_cw_battle", lambda *a, **k: {"status": "in_progress", "stage": "battle"})
+    cw = CwService(runtime_service=SimpleNamespace(get_runtime=lambda **kwargs: Runtime()))
+    _, _, _, handlers, _, _, _ = cw._context(method="cw.battle.run", payload={"session_id": session.session_id},
+        workspace_root=str(tmp_path), session_service=service, request_id="job-a")
+    assert handlers["cw.battle.run"]()["status"] == "in_progress"

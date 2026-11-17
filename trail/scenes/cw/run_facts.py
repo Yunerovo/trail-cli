@@ -6,7 +6,7 @@ from uuid import uuid4
 from trail.scenes.cw.models import ensure_cw_state
 
 
-def start_cw_run_facts(session) -> dict:
+def start_cw_run_facts(session, *, preserve_battle_resume: bool = False) -> dict:
     facts = {
         "run_id": uuid4().hex,
         "opening": None,
@@ -16,6 +16,8 @@ def start_cw_run_facts(session) -> dict:
         "plot_armor": {"status": "unverified", "cards": [], "reselect_remaining": None},
         "plot_armor_history": [],
     }
+    if not preserve_battle_resume:
+        ensure_cw_state(session).pop("battle_resume", None)
     ensure_cw_state(session)["run_facts"] = facts
     return facts
 
@@ -24,7 +26,7 @@ def cw_run_facts(session) -> dict:
     facts = ensure_cw_state(session).get("run_facts")
     if isinstance(facts, dict):
         return facts
-    facts = start_cw_run_facts(session)
+    facts = start_cw_run_facts(session, preserve_battle_resume=True)
     facts["investment_history_incomplete"] = True
     return facts
 

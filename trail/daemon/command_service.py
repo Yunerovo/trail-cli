@@ -1087,7 +1087,7 @@ class CommandService:
             return daemon_transport_failure(
                 request_id=request.request_id,
                 code="SESSION_RECONCILE_REQUIRED",
-                message="session is tainted; reconcile before mutating cw commands",
+                message=f"session is tainted; run trail daemon reconcile-session --session {tainted_session_id}",
                 debug={"session_id": tainted_session_id},
             )
 

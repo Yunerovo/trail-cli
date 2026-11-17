@@ -175,21 +175,26 @@ def test_event_chooses_call_chooser_and_invalidate_stage_snapshot(tmp_path, meth
     assert chosen == [option]
 
 
-def test_season_two_replenish_chooses_fifth_card_and_uses_visible_confirm(monkeypatch):
+def test_replenish_reuses_visually_selected_card_without_toggling(monkeypatch):
+    from PIL import Image, ImageDraw
     events = load_cw_events_module()
-    supply = [_ocr_piece("补给阶段"), _ocr_piece("返回备战界面")]
-    readings = iter([
-        supply,
-        [*supply, _ocr_piece("已选择1/1"), _ocr_piece("确认", left=1659, top=978, width=91)],
-        [_ocr_piece("备战阶段")],
-    ])
-    runtime = EventRouterRuntime()
-    runtime.ocr = lambda **_: next(readings)
+    image = Image.new("RGB", (1920, 1080))
+    draw = ImageDraw.Draw(image)
+    draw.line((840, 292, 1080, 292), fill="white", width=4)
+    draw.line((942, 790, 978, 790), fill="white", width=1)
+    supply = {"value": "replenish", "entries": [
+        {"text": "2-3", "bounds": (440, 65, 485, 90)},
+        {"text": "确认", "bounds": (1659, 978, 1750, 1010)}]}
+    prep = {"value": "preparation", "entries": [
+        {"text": "备战阶段", "bounds": (425, 30, 505, 55)},
+        {"text": "2-4", "bounds": (440, 65, 485, 90)},
+        {"text": "出战", "bounds": (1770, 740, 1850, 770)}]}
+    readings = iter([(supply, image), (prep, image), (prep, image)])
+    monkeypatch.setattr(events, "_invest_observation", lambda *args: next(readings))
     monkeypatch.setattr(events, "sleep", lambda _: None)
-
-    events.build_cw_replenish_chooser(runtime)(5)
-
-    assert runtime.clicks == [(1671, 422), (1704, 996)]
+    runtime = EventRouterRuntime()
+    events.build_cw_replenish_chooser(runtime)(3)
+    assert runtime.clicks == [(1704, 994)]
 
 
 def test_season_two_invest_checks_the_page_before_clicking():
@@ -203,68 +208,47 @@ def test_season_two_invest_checks_the_page_before_clicking():
     assert runtime.clicks == []
 
 
-@pytest.mark.parametrize("option", [1, 2, 3])
-def test_invest_requires_selected_outline_and_stable_transition(monkeypatch, option):
+def test_invest_requires_matching_frame_enabled_button_and_stable_transition(monkeypatch):
     from PIL import Image, ImageDraw
     events = load_cw_events_module()
-    image = Image.new("RGB", (1920, 1080))
-    left, right = ((244, 671), (747, 1174), (1250, 1677))[option - 1]
-    ImageDraw.Draw(image).rectangle((left, 195, right, 822), outline="white", width=5)
-    assert events._selected_invest_card(image) == option
-    button = {"text": "确认", "bounds": (940, 975, 1010, 1005)}
-    title = {"text": "五百强", "bounds": (left + 160, 480, left + 250, 505)}
+    before = Image.new("RGB", (1920, 1080))
+    selected = before.copy()
+    draw = ImageDraw.Draw(selected)
+    draw.rectangle((244, 195, 671, 822), outline="white", width=5)
+    draw.rectangle((770, 965, 1150, 1020), fill="white")
+    entries = [{"text": "三费援军", "bounds": (404, 480, 494, 505)},
+               {"text": "打捞人才库+", "bounds": (890, 480, 1030, 505)},
+               {"text": "确认", "bounds": (940, 975, 1010, 1005)}]
+    panel = {"value": "invest", "entries": entries}
     prep = {"value": "preparation", "entries": [
         {"text": "备战阶段", "bounds": (425, 30, 505, 55)},
         {"text": "1-3", "bounds": (440, 65, 485, 90)},
         {"text": "出战", "bounds": (1770, 740, 1850, 770)}]}
-    readings = iter([({"value": "invest", "entries": []}, image),
-                     ({"value": "invest", "entries": [button, title]}, image),
-                     (prep, image), (prep, image)])
+    readings = iter([(panel, before), (panel, selected), (prep, selected), (prep, selected)])
     monkeypatch.setattr(events, "_invest_observation", lambda *args: next(readings))
     monkeypatch.setattr(events, "sleep", lambda _: None)
     runtime = EventRouterRuntime()
-    events.build_cw_invest_chooser(runtime)(option)
-    assert runtime.clicks == [((460, 960, 1460)[option - 1], 400), (975, 990)]
+    events.build_cw_invest_chooser(runtime, expected_title="三费援军")(1)
+    assert runtime.clicks == [(460, 400), (975, 990)]
 
 
-@pytest.mark.parametrize("reason", ["wrong_card", "no_outline", "off_region", "duplicate", "overlay"])
-def test_invest_never_confirms_ambiguous_selection(monkeypatch, reason):
-    from PIL import Image, ImageDraw
-    events = load_cw_events_module()
-    image = Image.new("RGB", (1920, 1080))
-    if reason != "no_outline":
-        left, right = (747, 1174) if reason == "wrong_card" else (244, 671)
-        ImageDraw.Draw(image).rectangle((left, 195, right, 822), outline="white", width=5)
-    button = {"text": "确认", "bounds": (940, 975, 1010, 1005)}
-    if reason == "off_region":
-        button["bounds"] = (1400, 975, 1470, 1005)
-    title = {"text": "五百强", "bounds": (404, 480, 494, 505)}
-    entries = [button, button, title] if reason == "duplicate" else [button, title]
-    readings = iter([({"value": "invest", "entries": []}, image),
-                     ({"value": None if reason == "overlay" else "invest", "entries": entries}, image)])
-    monkeypatch.setattr(events, "_invest_observation", lambda *args: next(readings))
-    monkeypatch.setattr(events, "sleep", lambda _: None)
-    runtime = EventRouterRuntime()
-    with pytest.raises(TrailError):
-        events.build_cw_invest_chooser(runtime)(1)
-    assert runtime.clicks == [(460, 400)]
-
-
-def test_invest_refuses_stale_snapshot_title(monkeypatch):
+def test_invest_rejects_disabled_button_and_stale_title_before_click(monkeypatch):
     from PIL import Image, ImageDraw
     events = load_cw_events_module()
     image = Image.new("RGB", (1920, 1080))
     ImageDraw.Draw(image).rectangle((244, 195, 671, 822), outline="white", width=5)
     panel = {"value": "invest", "entries": [
-        {"text": "新卡", "bounds": (404, 480, 494, 505)},
+        {"text": "三费援军", "bounds": (404, 480, 494, 505)},
+        {"text": "打捞人才库+", "bounds": (890, 480, 1030, 505)},
         {"text": "确认", "bounds": (940, 975, 1010, 1005)}]}
-    readings = iter([({"value": "invest", "entries": []}, image), (panel, image)])
-    monkeypatch.setattr(events, "_invest_observation", lambda *args: next(readings))
+    monkeypatch.setattr(events, "_invest_observation", lambda *args: (panel, image))
     monkeypatch.setattr(events, "sleep", lambda _: None)
     runtime = EventRouterRuntime()
-    with pytest.raises(TrailError) as error:
+    with pytest.raises(TrailError):
         events.build_cw_invest_chooser(runtime, expected_title="旧卡")(1)
-    assert error.value.code == "CW_EVENT_OPTION_UNCONFIRMED"
+    assert runtime.clicks == []
+    with pytest.raises(TrailError):
+        events.build_cw_invest_chooser(runtime, expected_title="三费援军")(1)
     assert runtime.clicks == [(460, 400)]
 
 
@@ -2667,3 +2651,59 @@ def test_battle_unverified_armor_level_transition_has_no_preflight_input(tmp_pat
         request_id="level-preflight", method="cw.battle.run", payload={"collect_crystals": False})
     assert envelope["data"]["status"] == "observed"
     assert clicks == []
+
+
+def test_replenish_rejects_stable_same_node(monkeypatch):
+    from PIL import Image, ImageDraw
+    events = load_cw_events_module()
+    image = Image.new("RGB", (1920, 1080))
+    draw = ImageDraw.Draw(image)
+    draw.line((840, 292, 1080, 292), fill="white", width=4)
+    draw.line((942, 790, 978, 790), fill="white")
+    node = {"text": "2-3", "bounds": (440, 65, 485, 90)}
+    supply = {"value": "replenish", "entries": [node, {"text": "确认", "bounds": (1659, 978, 1750, 1010)}]}
+    prep = {"value": "preparation", "entries": [node,
+        {"text": "备战阶段", "bounds": (425, 30, 505, 55)},
+        {"text": "出战", "bounds": (1770, 740, 1850, 770)}]}
+    readings = iter([(supply, image)] + [(prep, image)] * 5)
+    monkeypatch.setattr(events, "_invest_observation", lambda *args: next(readings))
+    monkeypatch.setattr(events, "sleep", lambda _: None)
+    with pytest.raises(TrailError, match="确认") as error:
+        events.build_cw_replenish_chooser(EventRouterRuntime())(3)
+    assert error.value.code == "CW_EVENT_CONFIRM_UNCONFIRMED"
+
+
+def test_invest_selects_unreadable_title_by_verified_lane(monkeypatch):
+    from PIL import Image, ImageDraw
+    events = load_cw_events_module()
+    before = Image.new("RGB", (1920, 1080))
+    selected = before.copy()
+    draw = ImageDraw.Draw(selected)
+    draw.rectangle((747, 195, 1174, 822), outline="white", width=5)
+    draw.rectangle((770, 965, 1150, 1020), fill="white")
+    panel = {"value": "invest", "entries": [
+        {"text": "三费援军", "bounds": (404, 480, 494, 505)},
+        {"text": "公司军火更新·银", "bounds": (1370, 480, 1550, 505)},
+        {"text": "获得金币", "bounds": (820, 550, 1100, 580)},
+        {"text": "确认", "bounds": (940, 975, 1010, 1005)}]}
+    prep = {"value": "preparation", "entries": [
+        {"text": "备战阶段", "bounds": (425, 30, 505, 55)},
+        {"text": "1-3", "bounds": (440, 65, 485, 90)},
+        {"text": "出战", "bounds": (1770, 740, 1850, 770)}]}
+    readings = iter([(panel, before), (panel, selected), (prep, selected), (prep, selected)])
+    monkeypatch.setattr(events, "_invest_observation", lambda *args: next(readings))
+    monkeypatch.setattr(events, "sleep", lambda _: None)
+    runtime = EventRouterRuntime()
+    evidence = events.build_cw_invest_chooser(runtime)(2)
+    assert evidence["title"] is None
+    assert runtime.clicks == [(960, 400), (975, 990)]
+
+
+def test_replenish_returns_confirmed_successor_to_session(tmp_path):
+    from tests.conftest import build_fake_cw_session
+    events = load_cw_events_module()
+    session = build_fake_cw_session(tmp_path)
+    events.choose_cw_replenish(session, option=3, chooser=lambda _: {
+        "source_node": "2-3", "successor": {"stage": "preparation", "node": "2-4", "hp": 87}})
+    assert session.scene_state["cw"]["stage"] == {
+        "value": "preparation", "stale": False, "source_node": "2-3", "node": "2-4"}

@@ -989,22 +989,13 @@ def test_shop_scan_canonicalizes_items_and_keeps_diagnostics_out_of_status(tmp_p
     )
 
     assert applied.response_snapshot["items"] == [
-        {
-            "slot": 2,
-            "name": "爻光",
-            "role_id": "1502",
-            "price": 1,
-            "traits": ["仙舟"],
-            "raw_name": "交光",
-            "match_score": 0.5,
-            "match_kind": "low_confidence",
-        }
+        {"slot": 2, "name": "交光", "price": 1, "uncertain": True}
     ]
     assert applied.response_snapshot["warnings"][0]["code"] == "CW_ROLE_MATCH_LOW_CONFIDENCE"
     assert applied.response_snapshot["warnings"][0]["position"] == {"kind": "shop", "slot": 2}
 
     persisted_item = session.scene_state["cw"]["shop"]["items"][0]
-    assert persisted_item == {"slot": 2, "name": "爻光", "role_id": "1502", "price": 1, "traits": ["仙舟"]}
+    assert persisted_item == {"slot": 2, "name": "交光", "price": 1, "uncertain": True}
     assert "warnings" not in session.scene_state["cw"]["shop"]
 
     status_item = shop_cw_status(session)["items"][0]
@@ -1192,21 +1183,13 @@ def test_shop_scan_unslotted_low_confidence_warning_uses_item_idx(tmp_path):
     )
 
     assert applied.response_snapshot["items"] == [
-        {
-            "name": "爻光",
-            "role_id": "1502",
-            "price": 1,
-            "traits": ["仙舟"],
-            "raw_name": "交光",
-            "match_score": 0.5,
-            "match_kind": "low_confidence",
-        }
+        {"name": "交光", "price": 1, "uncertain": True}
     ]
     assert applied.response_snapshot["warnings"][0]["code"] == "CW_ROLE_MATCH_LOW_CONFIDENCE"
     assert applied.response_snapshot["warnings"][0]["position"] == {"kind": "shop", "idx": 1}
 
     persisted_item = session.scene_state["cw"]["shop"]["items"][0]
-    assert persisted_item == {"name": "爻光", "role_id": "1502", "price": 1, "traits": ["仙舟"]}
+    assert persisted_item == {"name": "交光", "price": 1, "uncertain": True}
     assert "warnings" not in session.scene_state["cw"]["shop"]
     assert "raw_name" not in persisted_item
     assert "match_score" not in persisted_item
@@ -2910,14 +2893,14 @@ def test_cw_service_shop_scan_uses_base_catalog_and_enriched_summary_only_when_s
     )
 
     assert fetch_calls == [False, True]
-    assert scanned["items"][0]["name"] == "爻光"
-    assert scanned["items"][0]["raw_name"] == "交光"
+    assert scanned["items"][0]["name"] == "交光"
+    assert scanned["items"][0]["uncertain"] is True
     assert scanned["warnings"][0]["code"] == "CW_ROLE_MATCH_LOW_CONFIDENCE"
     assert scanned["trait_summary"] == [
         {"trait": "量子", "tiers": [1, 2], "owned_roles": 2, "active_tier": 2, "total_tiers": 2, "ratio": 1.0}
     ]
     persisted_shop = service.load_session(session.session_id).scene_state["cw"]["shop"]
-    assert persisted_shop["items"] == [{"slot": 2, "name": "爻光", "role_id": "1502", "price": 1, "traits": ["仙舟"]}]
+    assert persisted_shop["items"] == [{"slot": 2, "name": "交光", "price": 1, "uncertain": True}]
     assert "raw_name" not in persisted_shop["items"][0]
     assert "warnings" not in persisted_shop
     assert "trait_summary" not in persisted_shop
@@ -3956,3 +3939,23 @@ def test_reconcile_shop_reader_retries_only_missing_lane_from_same_crop(monkeypa
     assert calls == ["capture", "capture", ((530, 108), 160, "high")]
     assert [row["name"] for row in result["items"][:4]] == ["角色"] * 4
     assert result["items"][4] == {"slot": 5, "name": "真珠" if complete_retry else None, "price": 1 if complete_retry else None}
+
+
+def test_shop_equipment_names_are_not_misidentified_as_roles():
+    shop = load_cw_shop_module()
+    for name in ("轮滑鞋", "以太钻头"):
+        stable, response, warnings = shop._canonicalize_shop_item({"slot": 5, "name": name, "price": 4}, catalog=shop._shop_catalog(_shop_catalog_config()))
+        assert stable == response == {"slot": 5, "name": name, "price": 4, "type": "equipment"}
+        assert not warnings
+
+
+def test_equipment_purchase_rejected_before_click(tmp_path):
+    from tests.conftest import build_fake_cw_session
+    shop = load_cw_shop_module()
+    session = build_fake_cw_session(tmp_path)
+    session.scene_state["cw"]["shop"] = {"opened": True, "stale": False, "items": [{"slot": 5, "name": "轮滑鞋", "price": 4, "type": "equipment"}]}
+    clicks = []
+    with pytest.raises(TrailError) as exc:
+        shop.buy_cw_shop_slot(session, slot=5, expect="轮滑鞋", buyer=lambda **kwargs: clicks.append(kwargs), scanner=lambda: {})
+    assert exc.value.code == "SHOP_EQUIPMENT_PURCHASE_UNSUPPORTED"
+    assert clicks == []

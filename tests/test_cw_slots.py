@@ -3938,6 +3938,11 @@ def test_cw_slots_and_hand_mutations_flow_through_command_service_journal(
     assert envelope["data"][assertion_key] == assertion_value
     assert status["final_state"] == "completed"
     assert persisted[state_path[0]][state_path[1]] == assertion_value
+    if method == "cw.slots.place":
+        assert envelope["data"]["applied_actions"] == len(payload["actions"])
+        assert envelope["data"]["verification"] == "pending"
+        assert envelope["data"]["stale"] is True
+        assert persisted["slots"]["stale"] is False  # Response metadata never changes the snapshot.
     if method == "cw.hand.sell_plan":
         assert envelope["data"]["items"] == _fake_reference_sell_plan()["items"]
         assert persisted["sell_plan"]["items"] == _fake_reference_sell_plan()["items"]
@@ -4006,3 +4011,30 @@ def test_crystal_blue_detection_shift_without_count_drop_is_unconfirmed(monkeypa
     assert result["last_crystal_collection"] == "unconfirmed"
     assert result["collected"] == 0 and result["visible_remaining"] == 1
     assert len(drags) == 1
+
+
+@pytest.mark.parametrize('reading,expected_stage,reason', [
+    ({'value': 'preparation', 'entries': [{'text': '梦境交织', 'bounds': (990, 60, 1110, 95)},
+        {'text': '请选择2名共舞的角色', 'bounds': (1330, 500, 1660, 550)}]}, 'dream_interweaving', None),
+    ({'value': 'preparation', 'entries': [{'text': '备战席已满，需要售卖备战区角色才可开启晶矿', 'bounds': (600, 285, 1320, 325)}]}, 'preparation', 'bench_full'),
+])
+def test_crystal_collector_blocks_positioned_overlay_before_input(monkeypatch, reading, expected_stage, reason):
+    slots = load_cw_slots_module()
+    actions = []
+    runtime = SimpleNamespace(click_point=lambda *a: actions.append(a), drag_to=lambda *a, **k: actions.append(a))
+    monkeypatch.setattr(slots, '_runtime_slots_image', lambda _: object())
+    monkeypatch.setattr(slots.stage, 'build_cw_stage_detector', lambda _: lambda **kw: 'preparation')
+    monkeypatch.setattr(slots.stage, 'read_cw_stage_text', lambda *a, **kw: reading)
+    monkeypatch.setattr(slots, '_visible_cw_crystals', lambda _: [(1400, 300)])
+    monkeypatch.setattr(slots, '_visible_cw_gold_crystals', lambda _: [])
+    result = slots.build_cw_crystal_collector(runtime)()
+    assert result['last_crystal_collection'] == 'blocked' and result['stage'] == expected_stage
+    assert result.get('reason') == reason and actions == []
+
+
+def test_crystal_collection_old_block_reason_does_not_leak(tmp_path):
+    slots = load_cw_slots_module()
+    session = SessionStore(tmp_path).create(window_binding={"title": "崩坏：星穹铁道"})
+    slots.collect_cw_crystals(session, collector=lambda: {'last_crystal_collection': 'blocked', 'stage': 'preparation', 'reason': 'bench_full'})
+    slots.collect_cw_crystals(session, collector=lambda: {'last_crystal_collection': 'none_visible', 'stage': 'preparation'})
+    assert 'reason' not in session.scene_state['cw']['metrics']

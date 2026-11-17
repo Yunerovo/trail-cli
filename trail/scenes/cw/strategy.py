@@ -45,14 +45,19 @@ def summarize_strategy_cards(
         card_idx = int(item.get("card_idx") or index)
         if card_idx not in VALID_STRATEGY_CARD_INDEXES:
             continue
-        matched = _match_strategy_catalog(
-            str(item.get("strategy_title") or ""),
-            str(item.get("strategy_description") or ""),
-            catalog,
-        )
+        if item.get("_preserve_ocr"):
+            title = str(item.get("strategy_title") or "")
+            matched = next((entry for entry in catalog if entry.get("title") == title), None)
+        else:
+            matched = _match_strategy_catalog(
+                str(item.get("strategy_title") or ""),
+                str(item.get("strategy_description") or ""),
+                catalog,
+            )
         if item.get("_match_required") and not isinstance(matched, Mapping):
             continue
-        strategy_title = str(matched.get("title") if isinstance(matched, Mapping) else item.get("strategy_title") or "")
+        strategy_title = (str(matched.get("title")) if isinstance(matched, Mapping)
+                          else item.get("strategy_title") or None)
         strategy_description = str(
             matched.get("description") if isinstance(matched, Mapping) and matched.get("description") else item.get("strategy_description") or ""
         )
@@ -345,6 +350,31 @@ def _normalize_strategy_ocr_card_inputs(values: object) -> list[dict[str, object
     lanes: list[list[dict[str, float | str]]] = [[] for _ in range(STRATEGY_LANE_COUNT)]
     for piece in pieces:
         lanes[_resolve_strategy_lane_index(float(piece["center_x"]))].append(piece)
+
+    # The current 1080p card layout puts titles in a narrow, common row.
+    # Require multiple positioned titles before interpreting this geometry.
+    title_rows = [[p for p in lane if 470 <= float(p["center_y"]) <= 515]
+                  for lane in lanes]
+    if sum(len(row) == 1 for row in title_rows) >= 2:
+        result = []
+        for lane_index, titles in enumerate(title_rows):
+            if len(titles) > 1:
+                continue
+            description = _build_strategy_lane_lines([
+                p for p in lanes[lane_index] if 520 <= float(p["center_y"]) < 800
+            ])
+            # An unreadable title is still a selectable position only when its
+            # own effect text and refresh control prove this is a visible lane.
+            if not titles and (not description or not any(
+                    STRATEGY_REFRESH_PATTERN.search(str(p["text"])) for p in lanes[lane_index])):
+                continue
+            result.append({"card_idx": lane_index + 1,
+                           "strategy_title": str(titles[0]["text"]) if titles else None,
+                           "strategy_description": " ".join(description),
+                           "refresh_count": _extract_strategy_refresh_count(
+                               " ".join(_build_strategy_lane_lines(lanes[lane_index]))),
+                           "_sort_order": lane_index, "_preserve_ocr": True})
+        return result
 
     normalized: list[dict[str, object]] = []
     for lane_index, lane_pieces in enumerate(lanes):
@@ -668,11 +698,11 @@ def _match_strategy_catalog(
     return matched[4]
 
 
-def _guide_match_for_strategy(title: str, guide_state: object | None) -> tuple[str, int]:
+def _guide_match_for_strategy(title: str | None, guide_state: object | None) -> tuple[str, int]:
     if not _has_valid_selected_guide(guide_state):
         return "否", 0
 
-    normalized_title = _normalize_strategy_text(title)
+    normalized_title = _normalize_strategy_text(title or "")
     primary = _normalize_guide_strategy_names(guide_state.get("first_fight_augments"))
     secondary = _normalize_guide_strategy_names(guide_state.get("second_fight_augments"))
     if normalized_title and normalized_title in primary:

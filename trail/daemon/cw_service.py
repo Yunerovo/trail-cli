@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import contextmanager
 from copy import deepcopy
+from datetime import datetime, timezone
 from inspect import Parameter, signature
 from pathlib import Path
 from time import monotonic, sleep
@@ -14,7 +15,7 @@ from trail.artifacts.store import ArtifactStore
 from trail.core.errors import TrailError
 from trail.core.jsonable import format_exception_detail, format_exception_message, to_jsonable
 from trail.daemon.command_timeouts import DEFAULT_CW_BATTLE_RUN_TIMEOUT_SECONDS, resolve_command_execution_timeout
-from trail.daemon.command_service import PersistedButResponseUnknown, SideEffectAppliedButStateNotPersisted
+from trail.daemon.command_service import PersistedButResponseUnknown, SideEffectAppliedButStateNotPersisted, _normalize_workspace_path
 from trail.daemon.models import RequestCancelled
 from trail.output.capture import with_auto_capture, with_selective_capture
 from trail.output.envelope import build_image_guidance
@@ -763,7 +764,15 @@ class CwService:
                 except Exception as error:
                     raise CwSideEffectAppliedError("cw.portal.select input was sent before waiting for the next page") from error
                 record_cw_investment(session, selected, kind="portal")
-                return {**selected, "status": "observed", "stage": current.get("stage")}
+                response = {**selected, "status": "observed", "stage": current.get("stage"),
+                            **{key: current[key] for key in ("voyage_text", "observed_stage", "reason") if current.get(key)}}
+                if current.get("preparation_verified") is True and current.get("stage") == "preparation":
+                    return _collect_cw_preparation_facts(
+                        session, runtime=runtime_instance, workspace_root=workspace_root,
+                        cw_resource_service=self.cw_resource_service, request_id=request_id,
+                        response_data=response, order=PORTAL_SELECT_PREP_COLLECT_ORDER,
+                        previous_slots_snapshot=_fresh_previous_slots_snapshot(session))
+                return response
             guide = _require_selected_guide(session)
             return _select_portal_and_apply_selected_guide(
                 session,
@@ -1114,7 +1123,9 @@ class CwService:
             can_read_armor = callable(getattr(current_runtime, "capture_image", None))
             facts = cw_run_facts(session) if can_read_armor else ensure_cw_state(session).get("run_facts")
             checked_armor = False
-            if can_read_armor and facts["plot_armor"]["status"] in {"unverified", "partial"}:
+            resume = ensure_cw_state(session).get("battle_resume") or {}
+            resuming_battle = any(resume.get(key) for key in ("start_pending", "in_battle_hint", "report", "terminal"))
+            if can_read_armor and not resuming_battle and facts["plot_armor"]["status"] in {"unverified", "partial"}:
                 if callable(getattr(current_runtime, "screenshot", None)) and callable(getattr(current_runtime, "ocr_image", None)):
                     observation = observe_cw_battle_page(current_runtime, detected_stage=None)
                     if observation.frame is not None:
@@ -1134,6 +1145,52 @@ class CwService:
                 if header["stage"] == "preparation" and restored_stage != "preparation":
                     return stop_after_unconfirmed_armor({"status": "blocked"}, restored_stage)
             battle_started_at = monotonic()
+            last_progress = [None, 0.0]
+            evidence_counter = [0]
+
+            def save_evidence(frame, kind):
+                if frame is None or not callable(getattr(current_runtime, "save_capture_image_to_workspace", None)):
+                    return None
+                evidence_counter[0] += 1
+                path = current_runtime.save_capture_image_to_workspace(
+                    frame, request_id=f"{kind}-{evidence_counter[0]}-{request_id}")
+                return _normalize_workspace_path(path, workspace_root=Path(workspace_root))
+
+            def terminal_checkpoint(terminal, frame, phase):
+                # The battle loop invokes this synchronously before its irreversible click.
+                kind = phase
+                evidence = save_evidence(frame, f"terminal-{kind}")
+                if evidence and isinstance(terminal.get(kind), dict):
+                    terminal[kind]["evidence"] = evidence
+                ensure_cw_state(session).setdefault("battle_resume", {})["terminal"] = deepcopy(terminal)
+                session_service.save_session(session)
+
+            def publish_progress(progress, frame):
+                publisher = getattr(cancellation_token, "publish_progress", None)
+                if not callable(publisher):
+                    return
+                try:
+                    now = monotonic()
+                    # A percentage change alone does not trigger another disk write.
+                    signature = (progress.get("phase"), progress.get("source"), progress.get("round"),
+                                 getattr(cancellation_token, "side_effect_stage", "none"))
+                    if signature == last_progress[0] and now - last_progress[1] < 10.0:
+                        return
+                    try:
+                        evidence = save_evidence(frame, "progress")
+                    except Exception:
+                        evidence = None
+                    snapshot = deepcopy(progress)
+                    snapshot["observed_at"] = datetime.now(timezone.utc).isoformat()
+                    snapshot["elapsed_seconds"] = round(now - battle_started_at, 1)
+                    if evidence:
+                        snapshot["evidence"] = evidence
+                    publisher(snapshot)
+                    last_progress[:] = [signature, now]
+                except Exception:
+                    # Progress is advisory; it must never interrupt game execution.
+                    return
+
             result = _call_with_supported_keywords(
                 run_cw_battle,
                 session,
@@ -1141,6 +1198,9 @@ class CwService:
                 timeout=timeout if timeout is not None else DEFAULT_CW_BATTLE_RUN_TIMEOUT,
                 cancellation_token=cancellation_token,
                 stop_at_plane=payload.get("stop_at_plane") is True,
+                terminal_checkpoint=terminal_checkpoint,
+                battle_checkpoint=lambda: session_service.save_session(session),
+                publish_progress=publish_progress,
             )
             if result.get("reason") == "reserve_overflow":
                 result["next_action"] = "cw.slots.read"
@@ -1208,7 +1268,7 @@ class CwService:
                 if restored_stage != "preparation":
                     return stop_after_unconfirmed_armor(result, restored_stage)
                 checked_armor = True
-            if result.get("status") == "completed" and result.get("stage") not in {"preparation", "game_over"} and can_read_armor:
+            if result.get("status") == "completed" and result.get("stage") not in {"preparation", "game_over", "terminal"} and can_read_armor:
                 reading, frame = _observe_battle_collection_page(current_runtime)
                 stage = reading.get("value") or "unknown"
                 result.pop("decision", None)
@@ -1553,11 +1613,16 @@ class CwService:
                 target=payload["target"],
                 swapper=slot_swapper_factory(runtime()),
             ).scene_state["cw"]["slots"],
-            "cw.slots.place": lambda: place_cw_slots(
-                session,
-                actions=payload["actions"],
-                placer=slot_placer_factory(runtime()),
-            ).scene_state["cw"]["slots"],
+            "cw.slots.place": lambda: {
+                **place_cw_slots(
+                    session,
+                    actions=payload["actions"],
+                    placer=slot_placer_factory(runtime()),
+                ).scene_state["cw"]["slots"],
+                "applied_actions": len(payload["actions"]),
+                "verification": "pending",
+                "stale": True,
+            },
             "cw.shop.open": lambda: open_cw_shop(
                 session,
                 opener=shop_opener_factory(runtime()),
@@ -1627,9 +1692,10 @@ class CwService:
                 session,
                 continuer=battle_continuer_factory(runtime()),
             ).scene_state["cw"]["stage"],
-            "cw.settle.next": lambda: settle_cw_next(
+            "cw.settle.next": lambda: _call_with_supported_keywords(settle_cw_next,
                 session,
                 continuer=settle_continuer_factory(runtime()),
+                runtime=runtime(), checkpoint=lambda: session_service.save_session(session),
             ).scene_state["cw"]["stage"],
             "cw.event.handle": run_event_handle,
             "cw.event.reconcile": run_event_reconcile,
@@ -1871,11 +1937,11 @@ def _current_guide(session, *, artifact_store: ArtifactStore):
 
 def clear_cw_battle_resume_hint(session) -> dict:
     resume = ensure_cw_state(session).get("battle_resume")
-    had_hint = isinstance(resume, dict) and bool(resume.get("in_battle_hint") or resume.get("start_pending"))
+    ordinary_keys = ("in_battle_hint", "start_pending", "start_node", "report", "settlement_actions")
+    had_hint = isinstance(resume, dict) and any(resume.get(key) for key in ordinary_keys)
     if isinstance(resume, dict):
-        resume.pop("in_battle_hint", None)
-        resume.pop("start_pending", None)
-        resume.pop("report", None)
+        for key in ordinary_keys:
+            resume.pop(key, None)
     return {"cleared": had_hint}
 
 

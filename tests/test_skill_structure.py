@@ -325,7 +325,7 @@ def test_trail_hsr_reference_files_exist_with_required_content() -> None:
             "state=running request=<job_id>",
             "原样重发同一条业务命令",
             "继续运行 `trail start`",
-            "继续运行 `trail cw battle run --session <session_id>`",
+            "长战 running 后使用 `trail daemon request-status --request-id <job_id>`",
             "通常无需把 `request=<job_id>` 改写成 `--request-id`",
             "DAEMON_BUSY",
             "trail daemon request-status --request-id <id>",

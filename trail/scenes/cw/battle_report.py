@@ -138,6 +138,9 @@ class BattleReport:
         if phase == "battle":
             self._observe_hud(runtime, frame, page_pieces, text)
         elif phase == "settlement":
+            match = re.search(r"挑战进度\D{0,8}(100|[1-9]?\d)\s*[%％]", text)
+            if match:
+                self.state["settlement_progress_pct"] = int(match[1])
             # The same panel can appear during the animation and beside the final HP total.
             stable_settlement = stable_settlement or "继续挑战" in text
             if stable_settlement:
@@ -177,6 +180,7 @@ class BattleReport:
             round_text, progress = hud
             if self.state.get("round", round_text) == round_text:
                 self.state["round"] = round_text
+                self.state["latest_hud_progress_pct"] = progress
                 self.state["progress_pct"] = max(progress, self.state.get("progress_pct", 0))
         has_banner = "受到致命攻击" in text and "倒计时减少" in text
         if not has_banner and ("致命攻击" in text or "倒计时减少" in text or self.state.get("lethal_banner_active")):
@@ -258,6 +262,10 @@ class BattleReport:
             goal = True
         summary["battle_report"] = {
             "progress_pct": progress,
+            "latest_hud_progress_pct": self.state.get("latest_hud_progress_pct"),
+            "latest_hud_source": "battle_hud" if self.state.get("latest_hud_progress_pct") is not None else None,
+            "settlement_progress_pct": self.state.get("settlement_progress_pct"),
+            "settlement_hp": summary.get("hp"),
             "minimum_progress_met": goal,
             "action_value_penalties": events,
             "team_hp_breakdown": breakdown,

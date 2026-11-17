@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+
 from collections.abc import Callable
 from contextlib import nullcontext
 from copy import deepcopy
@@ -375,6 +378,9 @@ def _bind_variable_cost_shop_item(
 def _stable_shop_item(item: Any) -> dict[str, Any] | None:
     if isinstance(item, dict):
         stable: dict[str, Any] = {"name": item.get("name"), "price": item.get("price")}
+        for key in ("type", "uncertain"):
+            if item.get(key) is not None:
+                stable[key] = item[key]
         if item.get("slot") is not None:
             stable["slot"] = item.get("slot")
         if item.get("cost") is not None:
@@ -415,6 +421,17 @@ def _shop_item_response_from_catalog_match(item: dict[str, Any], match) -> dict[
     return response
 
 
+@lru_cache(maxsize=1)
+def _bundled_equipment_names() -> frozenset[str]:
+    # The shipped season manifest is exact-name evidence, not fuzzy matching.
+    path = Path(__file__).with_name("generated") / "4.7" / "equipment" / "manifest.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return frozenset(item["name"] for item in data.get("items", []) if isinstance(item, dict) and isinstance(item.get("name"), str))
+    except (OSError, ValueError, TypeError):
+        return frozenset()
+
+
 def _canonicalize_shop_item(
     item: Any,
     *,
@@ -425,7 +442,14 @@ def _canonicalize_shop_item(
     if stable is None:
         return None, None, []
     name = stable.get("name")
-    if catalog is None or not isinstance(name, str) or not name.strip():
+    if not isinstance(name, str) or not name.strip():
+        return stable, deepcopy(stable), []
+    if name in _bundled_equipment_names():
+        stable.pop("role_id", None)
+        stable.pop("traits", None)
+        stable["type"] = "equipment"
+        return stable, deepcopy(stable), []
+    if catalog is None:
         return stable, deepcopy(stable), []
     if stable.get("role_id") is not None:
         id_match = resolve_cw_role_id(stable.get("role_id"), catalog)
@@ -448,6 +472,11 @@ def _canonicalize_shop_item(
     match = resolve_cw_role_name(name, catalog, position=position, cost=stable.get("cost") or stable.get("price"))
     if match is None:
         return stable, deepcopy(stable), []
+    if match.match_kind in {"low_confidence", "ambiguous"}:
+        stable.pop("role_id", None)
+        stable.pop("traits", None)
+        stable["uncertain"] = True
+        return stable, deepcopy(stable), [match.warning] if isinstance(match.warning, dict) else []
     warnings = [match.warning] if isinstance(match.warning, dict) else []
     return _shop_item_from_catalog_match(stable, match), _shop_item_response_from_catalog_match(stable, match), warnings
 
@@ -653,6 +682,10 @@ def _require_fresh_shop_item(cw_state: dict[str, Any], *, slot: int, expect: str
         raise TrailError("SHOP_SLOT_MISMATCH", f"shop slot {slot} expected {expect}, got: {actual}")
     if _is_unavailable_variable_cost_shop_item(current):
         raise TrailError("SHOP_LV999_COST_UNKNOWN", f"shop slot {slot} expected {expect}, got unknown variable cost")
+    if current.get("uncertain") is True:
+        raise TrailError("SHOP_SLOT_UNCERTAIN", f"shop slot {slot} identity is uncertain")
+    if current.get("type") == "equipment":
+        raise TrailError("SHOP_EQUIPMENT_PURCHASE_UNSUPPORTED", f"shop slot {slot} is equipment; role purchase verification is unavailable")
     return current
 
 
@@ -660,7 +693,7 @@ def _purchase_confirmed(*, before_items: list[dict[str, Any]], after_items: list
     before_item = _shop_item_for_slot(before_items, slot=slot)
     after_item = _shop_item_for_slot(after_items, slot=slot)
     after_name = after_item.get("name") if isinstance(after_item, dict) else None
-    return before_item != after_item and after_name != expect
+    return not (isinstance(after_item, dict) and after_item.get("uncertain") is True) and before_item != after_item and after_name != expect
 
 
 def _scan_until_purchase_confirmed(

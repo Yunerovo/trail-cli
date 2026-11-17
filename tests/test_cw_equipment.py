@@ -3088,3 +3088,50 @@ def test_record_equipment_compose_rejects_invalid_rpc_slot(tmp_path, slot):
         )
 
     assert getattr(exc_info.value, "code", None) == "SLOTS_POSITION_INVALID"
+
+
+def test_compose_and_equip_without_guide_still_verifies_real_mutation(tmp_path, monkeypatch):
+    from trail.scenes.cw import slots as slots_module
+    from trail.scenes.cw.equipment_grid import equipment_slot_center
+    from trail.scenes.cw.models import ensure_cw_state
+
+    equipment = load_equipment_module()
+    session = _cw_session_with_equipment_guide(tmp_path)
+    session.scene_state["cw"].pop("guide", None)
+    runtime = _ComposeRuntime()
+    _install_compose_equipment_reads(
+        monkeypatch,
+        equipment,
+        session,
+        [
+            _equipment_snapshot(
+                _equipment_item(2, "基础装甲", "armor", "basic-armor"),
+                _equipment_item(5, "光能电池", "battery", "basic-battery"),
+                _equipment_item(6, "备用零件", "spare", "basic-spare"),
+            ),
+            _equipment_snapshot(
+                _equipment_item(5, "备用零件", "spare", "basic-spare"),
+                _equipment_item(6, "高周波电锯", "saw", "advanced-saw"),
+            ),
+            _equipment_snapshot(
+                _equipment_item(5, "备用零件", "spare", "basic-spare"),
+                recommendations={"priority": []},
+            ),
+        ],
+    )
+
+    result = _compose_and_equip(equipment, session, runtime)
+
+    assert [drag[:4] for drag in runtime.drags] == [
+        (*equipment_slot_center("equipment:5"), *equipment_slot_center("equipment:2")),
+        (*equipment_slot_center("equipment:6"), *slots_module.SLOT_POINTS_BY_AREA["front"][0]),
+    ]
+    assert result["compose_action"] == {"drag_from": "equipment:5", "drag_to": "equipment:2"}
+    assert result["equip_action"] == {"drag_from": "equipment:6", "drag_to": "front:1"}
+    assert result["verified_shift"] == 1
+    assert result["post_compose_equipment_count"] == 2
+    assert result["post_equip_equipment_count"] == 1
+    assert result["count"] == 2
+    assert ensure_cw_state(session)["slots"]["front"][0]["equipments"] == ["战场手册", "高周波电锯"]
+    assert ensure_cw_state(session)["equipment"]["stale"] is True
+    assert "recommendations" not in ensure_cw_state(session)["equipment"]

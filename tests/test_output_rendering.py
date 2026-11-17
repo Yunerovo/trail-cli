@@ -4910,6 +4910,8 @@ def test_render_output_renders_cw_slots_place_success_text():
             "back": ["佩拉"],
             "hand": [],
             "stale": True,
+            "applied_actions": 4,
+            "verification": "pending",
         },
         "screenshot": ".trail/shots/req-cw-slots-place.png",
         "timing": {},
@@ -4920,7 +4922,7 @@ def test_render_output_renders_cw_slots_place_success_text():
     }
 
     assert render_output("cw.slots.place", payload).splitlines() == [
-        "ok cw.slots.place front=1 back=1 hand=0 stale=1",
+        "ok cw.slots.place applied_actions=4 verification=pending stale=1",
         "shot path=.trail/shots/req-cw-slots-place.png",
         "info read_image_first=1",
     ]
@@ -6267,7 +6269,7 @@ def test_render_output_daemon_busy_uses_request_submit_recover_action_with_sessi
         "fail daemon.request_submit code=DAEMON_BUSY active_request=job-active active_command=cw.battle.run active_session=sess-1",
         "request id=call-busy",
         'why msg="another game operation is running"',
-        "recover action=cw.battle.run request=job-active session=sess-1",
+        "recover action=daemon.request_status request=job-active session=sess-1",
     ]
 
 
@@ -6360,7 +6362,7 @@ def test_render_output_request_status_for_rejected_call_uses_active_request_in_n
 
     assert render_output("daemon.request_status", payload).splitlines() == [
         "ok daemon.request_status request=call-busy command=daemon.request_submit state=rejected final=1 final_state=failed_before_side_effect last_visible_stage=rejected side_effect_stage=none tainted=0 executed=0 active_request=job-active active_command=cw.battle.run active_session=sess-1",
-        "info next_action=cw.battle.run request=job-active session=sess-1",
+        "info next_action=daemon.request_status request=job-active session=sess-1",
     ]
 
 
@@ -6416,7 +6418,8 @@ def test_skill_docs_split_simple_and_advanced_commands() -> None:
     assert "trail daemon install" not in simple_command_surface
     assert "trail daemon status" not in simple_command_surface
     assert "trail daemon start" not in simple_command_surface
-    assert "trail daemon request-status" not in simple_command_surface
+    assert "trail daemon request-status" in simple_command_surface
+    assert "长战" in simple_command_surface
     assert "trail daemon reconcile-session" not in simple_command_surface
     assert "trail window launch" not in simple_command_surface
     assert "trail window attach" not in simple_command_surface
@@ -6593,3 +6596,63 @@ def test_battle_unknown_in_battle_is_not_rendered_as_false(value, expected):
     payload = {"ok": True, "data": {"status": "in_progress", "stale": True, "in_battle": value}}
     first = render_output("cw.battle.run", payload).splitlines()[0]
     assert ("in_battle=0" in first) is expected
+
+
+def test_battle_output_identifies_hud_settlement_and_terminal_sources():
+    output = render_output("cw.battle.run", {"ok": True, "data": {
+        "status": "completed", "stage": "game_over",
+        "battle_report": {"progress_pct": 67, "latest_hud_progress_pct": 0,
+                          "latest_hud_source": "battle_hud", "settlement_progress_pct": None,
+                          "settlement_hp": 85},
+        "terminal_report": {"evaluation": {"result": "win", "evidence": "eval.jpg"},
+                            "detail": {"result": "win", "evidence": "detail.jpg"}},
+    }})
+    assert "progress_pct=67" in output
+    assert "latest_hud_progress_pct=0" in output
+    assert "latest_hud_source=battle_hud" in output
+    assert "settlement_progress_pct=unknown" in output
+    assert "settlement_hp=85" in output
+    assert "source=evaluation result=win evidence=eval.jpg" in output
+    assert "source=detail result=win evidence=detail.jpg" in output
+
+
+def test_crystal_block_reason_visible_in_standalone_and_battle_output():
+    from trail.output.rendering import _render_cw_metrics, _render_cw_battle_run
+    crystals = {'last_crystal_collection': 'blocked', 'stage': 'preparation', 'reason': 'bench_full', 'swipes': 0}
+    standalone = '\n'.join(_render_cw_metrics('cw.crystals.collect', {'data': crystals}))
+    battle = '\n'.join(_render_cw_battle_run('cw.battle.run', {'data': {'status': 'completed', 'stage': 'preparation', 'crystals': crystals}}))
+    assert 'reason=bench_full' in standalone and 'reason=bench_full' in battle
+
+
+def test_experience_renderer_reports_missing_fields():
+    from trail.output.rendering import _render_cw_experience
+    lines = _render_cw_experience("cw.shop.plan_exp", {"data": {"status": "unknown", "price_currency": None, "displayed_price": None, "missing_fields": ["price_currency", "displayed_price"]}})
+    rendered = "\n".join(lines)
+    assert "price_currency=unknown" in rendered
+    assert "displayed_price=unknown" in rendered
+    assert "missing_fields=price_currency|displayed_price" in rendered
+
+
+def test_portal_renderer_preserves_voyage_text():
+    from trail.output.rendering import _render_cw_portal_select
+    lines = _render_cw_portal_select("cw.portal.select", {"data": {"status": "observed", "stage": "preparation", "voyage_text": ["本局奇遇"]}})
+    assert "本局奇遇" in "\n".join(lines)
+
+
+def test_replenish_choose_renders_verified_node_and_unknown_strategy_title():
+    assert render_output("cw.replenish.choose", {"ok": True, "data": {
+        "value": "preparation", "stale": False, "source_node": "2-3", "node": "2-4"}}).splitlines()[0] == (
+        "ok cw.replenish.choose stage=preparation stale=0 source_node=2-3 node=2-4")
+    assert render_output("cw.strategy.select", {"ok": True, "data": {
+        "card_idx": 2, "strategy_title": None}}).splitlines()[0] == (
+        "ok cw.strategy.select idx=2 投资策略=unknown")
+
+
+def test_no_guide_handoff_requires_verified_preparation_status():
+    from trail.output.rendering import render_output
+    base = {"ok": True, "screenshot": None, "warnings": [], "references": []}
+    confirmed = render_output("cw.portal.select", {**base, "data": {"status": "observed", "stage": "preparation", "slots": {"stale": False}}})
+    uncertain = render_output("cw.portal.select", {**base, "data": {"status": "observed", "stage": "unknown", "observed_stage": "preparation", "reason": "preparation_unverified"}})
+    assert "handoff_skill=trail-cw-prep" in confirmed
+    assert "handoff_skill=trail-cw-prep" not in uncertain
+    assert "reason=preparation_unverified" in uncertain

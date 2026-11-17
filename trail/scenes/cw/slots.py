@@ -1373,10 +1373,24 @@ def _crystal_at(point, points):
 def build_cw_crystal_collector(runtime, *, verify_frame=None) -> CrystalCollector:
     detector = stage.build_cw_stage_detector(runtime)
 
+    obstruction = [None]
+
     def verify(image):
+        obstruction[0] = None
         if verify_frame is not None:
             return verify_frame(image)
         reading = stage.read_cw_stage_text(runtime, image=image)
+        entries = reading["entries"]
+        def positioned(text, region):
+            return any(text in entry["text"].replace(" ", "") and (box := entry["bounds"]) is not None
+                       and region[0] <= (box[0] + box[2]) / 2 <= region[2]
+                       and region[1] <= (box[1] + box[3]) / 2 <= region[3] for entry in entries)
+        if (positioned("梦境交织", (850, 30, 1250, 125))
+            and positioned("请选择2名共舞的角色", (1200, 440, 1800, 600))):
+            return "dream_interweaving"
+        if positioned("备战席已满，需要售卖备战区角色才可开启晶矿", (450, 260, 1470, 350)):
+            obstruction[0] = "bench_full"
+            return "preparation"
         detected = detector(image=image)
         # Decision text and the level-up overlay take precedence over a visible
         # preparation control underneath them.
@@ -1394,8 +1408,11 @@ def build_cw_crystal_collector(runtime, *, verify_frame=None) -> CrystalCollecto
         swipes = collected = actions = 0
         image = _runtime_slots_image(runtime)
         confirmed_stage = verify(image)
-        if confirmed_stage != "preparation":
-            return {"last_crystal_collection": "blocked", "stage": confirmed_stage or "unknown", "swipes": 0}
+        if confirmed_stage != "preparation" or obstruction[0]:
+            result = {"last_crystal_collection": "blocked", "stage": confirmed_stage or "unknown", "swipes": 0}
+            if obstruction[0]:
+                result["reason"] = obstruction[0]
+            return result
         blue = _visible_cw_crystals(image)
         gold = _visible_cw_gold_crystals(image)
         while (blue or gold) and actions < CRYSTAL_MAX_SWIPES:
@@ -1410,9 +1427,12 @@ def build_cw_crystal_collector(runtime, *, verify_frame=None) -> CrystalCollecto
             sleep(CRYSTAL_SETTLE_SECONDS)
             image = _runtime_slots_image(runtime)
             confirmed_stage = verify(image)
-            if confirmed_stage != "preparation":
-                return {"last_crystal_collection": "blocked", "stage": confirmed_stage or "unknown",
-                        "swipes": swipes, "collected": collected}
+            if confirmed_stage != "preparation" or obstruction[0]:
+                result = {"last_crystal_collection": "blocked", "stage": confirmed_stage or "unknown",
+                          "swipes": swipes, "collected": collected}
+                if obstruction[0]:
+                    result["reason"] = obstruction[0]
+                return result
             next_blue = _visible_cw_crystals(image)
             next_gold = _visible_cw_gold_crystals(image)
             blue_gone = sum(not _crystal_at(point, next_blue) for point in blue)
@@ -1764,7 +1784,7 @@ def collect_cw_crystals(session: SessionModel, *, collector: CrystalCollector | 
     outcome = collector() if collector is not None else None
     cw_state = ensure_cw_state(session)
     metrics = cw_state.setdefault("metrics", {})
-    for field in ("stage", "swipes", "collected", "visible_remaining"):
+    for field in ("stage", "swipes", "collected", "visible_remaining", "reason"):
         metrics.pop(field, None)
     if isinstance(outcome, dict):
         metrics.update(outcome)

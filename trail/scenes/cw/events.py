@@ -342,6 +342,22 @@ def _selected_invest_card(image):
     return selected[0] if len(selected) == 1 else None
 
 
+def _invest_confirm_enabled(image):
+    if image is None or image.size != (1920, 1080):
+        return False
+    image = image.convert("RGB")
+    # Interior points avoid text and border; the enabled button is pale,
+    # while the disabled button is dark purple in the observed layout.
+    samples = [image.getpixel(point) for point in ((850, 980), (1050, 995), (960, 1010))]
+    return all(min(rgb) >= 150 for rgb in samples)
+
+
+def _invest_layout(panel, image):
+    return (image is not None and image.size == (1920, 1080)
+            and panel["value"] == "invest"
+            and sum(_invest_title(panel, idx) is not None for idx in (1, 2, 3)) >= 2)
+
+
 def _invest_observation(runtime, ocr):
     capture = getattr(runtime, "capture_image", None)
     if not callable(capture) or not callable(getattr(runtime, "ocr_image", None)):
@@ -360,6 +376,14 @@ def _invest_title(panel, option):
             if left < x < right and 470 <= y <= 515 and entry["text"].strip():
                 titles.append(entry["text"].strip())
     return titles[0] if len(titles) == 1 else None
+
+
+def _invest_lane_has_effect(panel, option):
+    left, right = ((244, 671), (747, 1174), (1250, 1677))[option - 1]
+    return any(entry.get("bounds") and entry.get("text", "").strip()
+               and left < (entry["bounds"][0] + entry["bounds"][2]) / 2 < right
+               and 520 <= (entry["bounds"][1] + entry["bounds"][3]) / 2 < 800
+               for entry in panel["entries"])
 
 
 def _confirmed_invest_successor(panel):
@@ -384,21 +408,31 @@ def _confirmed_invest_successor(panel):
     return header
 
 
+def _same_invest_title(left, right):
+    def normalize(value):
+        return "".join(str(value).split()).replace("・", "·").replace("•", "·")
+    return bool(left and right) and normalize(left) == normalize(right)
+
+
 def _choose_invest(runtime, option, *, expected_title=None):
     if type(option) is not int or option not in (1, 2, 3):
         raise TrailError("CW_OPTION_INVALID", f"invalid currency wars option: {option}")
     ocr = OcrRequestConfig(lang="ch", ocr_mode="high")
-    panel, _ = _invest_observation(runtime, ocr)
-    if panel["value"] != "invest":
-        raise TrailError("CW_EVENT_PAGE_MISMATCH", "当前画面与投资页面不一致")
-    runtime.click_point((460, 960, 1460)[option - 1], 400)
-    sleep(0.35)
-    try:
-        panel, image = _invest_observation(runtime, ocr)
-    except TrailError as cause:
-        error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，无法核对当前画面")
-        error.known_failure_after_save = True
-        raise error from cause
+    panel, image = _invest_observation(runtime, ocr)
+    before_title = _invest_title(panel, option)
+    if (not _invest_layout(panel, image)
+            or (before_title is None and not _invest_lane_has_effect(panel, option))
+            or (expected_title is not None and not _same_invest_title(before_title, expected_title))):
+        raise TrailError("CW_EVENT_PAGE_MISMATCH", "无法核对当前投资卡片")
+    if _selected_invest_card(image) != option or not _invest_confirm_enabled(image):
+        runtime.click_point((460, 960, 1460)[option - 1], 400)
+        sleep(0.35)
+        try:
+            panel, image = _invest_observation(runtime, ocr)
+        except TrailError as cause:
+            error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，无法核对当前画面")
+            error.known_failure_after_save = True
+            raise error from cause
     buttons = []
     for entry in panel["entries"]:
         bounds = entry["bounds"]
@@ -408,8 +442,10 @@ def _choose_invest(runtime, option, *, expected_title=None):
             if 770 <= x <= 1150 and 960 <= y <= 1020:
                 buttons.append((x, y))
     title = _invest_title(panel, option)
-    if (panel["value"] != "invest" or _selected_invest_card(image) != option or len(buttons) != 1
-            or not title or (expected_title is not None and title != expected_title)):
+    if (not _invest_layout(panel, image) or _selected_invest_card(image) != option
+            or not _invest_confirm_enabled(image) or len(buttons) != 1
+            or (before_title is not None and not _same_invest_title(title, before_title))
+            or (before_title is None and title is None and not _invest_lane_has_effect(panel, option))):
         error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，请核对卡片和确认按钮")
         error.known_failure_after_save = True
         raise error
@@ -432,11 +468,80 @@ def _choose_invest(runtime, option, *, expected_title=None):
     raise error
 
 
+def _selected_replenish_card(image):
+    if image is None or image.size != (1920, 1080):
+        return None
+    pixels = image.convert("RGB").load()
+    selected = []
+    for idx, x in enumerate((252, 606, 960, 1315, 1671), 1):
+        def bright(px, py):
+            return min(pixels[px, py]) > 210
+        top = max(sum(bright(xx, y) for xx in range(x - 120, x + 120))
+                  for y in range(289, 297))
+        check = sum(bright(xx, 790) for xx in range(x - 18, x + 19))
+        if top > 200 and check > 15:
+            selected.append(idx)
+    return selected[0] if len(selected) == 1 else None
+
+
 def build_cw_replenish_chooser(runtime) -> OptionChooser:
-    return _build_season_two_option_chooser(
-        runtime, stage_name="replenish", centers=(252, 606, 960, 1315, 1671), card_y=422,
-        confirm="确认", confirm_y=(960, 1020),
-    )
+    def chooser(option):
+        if type(option) is not int or option not in (1, 2, 3, 4, 5):
+            raise TrailError("CW_OPTION_INVALID", f"invalid currency wars option: {option}")
+        ocr = OcrRequestConfig(lang="ch", ocr_mode="high")
+        panel, image = _invest_observation(runtime, ocr)
+        source = project_cw_preparation_header(panel)
+        if (panel["value"] != "replenish" or image.size != (1920, 1080)
+                or not source["node"]):
+            raise TrailError("CW_EVENT_PAGE_MISMATCH", "无法核对补给页面与当前节点")
+        if _selected_replenish_card(image) != option:
+            runtime.click_point((252, 606, 960, 1315, 1671)[option - 1], 422)
+            sleep(0.35)
+            try:
+                panel, image = _invest_observation(runtime, ocr)
+            except TrailError as cause:
+                error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "已尝试选择，无法核对当前画面")
+                error.known_failure_after_save = True
+                raise error from cause
+        buttons = []
+        for entry in panel["entries"]:
+            b = entry["bounds"]
+            if b and entry["text"].strip("()（）✓✔ ") == "确认":
+                x, y = round((b[0] + b[2]) / 2), round((b[1] + b[3]) / 2)
+                if 1500 <= x <= 1900 and 960 <= y <= 1020:
+                    buttons.append((x, y))
+        if (panel["value"] != "replenish" or project_cw_preparation_header(panel)["node"] != source["node"]
+                or _selected_replenish_card(image) != option or len(buttons) != 1):
+            error = TrailError("CW_EVENT_OPTION_UNCONFIRMED", "无法确认补给选择和按钮")
+            error.known_failure_after_save = True
+            raise error
+        runtime.click_point(*buttons[0])
+        previous = None
+        for _ in range(5):
+            sleep(0.3)
+            try:
+                panel, _ = _invest_observation(runtime, ocr)
+            except TrailError as cause:
+                error = TrailError("CW_EVENT_CONFIRM_UNCONFIRMED", "已尝试确认，无法核对当前画面")
+                error.known_failure_after_save = True
+                raise error from cause
+            current = _confirmed_invest_successor(panel)
+            if current is not None and _replenish_node_after(current.get("node"), source["node"]) and current == previous:
+                return {"source_node": source["node"], "successor": current}
+            previous = current
+        error = TrailError("CW_EVENT_CONFIRM_UNCONFIRMED", "已尝试确认，请核对当前画面")
+        error.known_failure_after_save = True
+        raise error
+    return chooser
+
+
+def _replenish_node_after(current, source):
+    def parse(node):
+        import re
+        match = re.fullmatch(r"([1-3])-(\d{1,2})", node) if isinstance(node, str) else None
+        return (int(match[1]), int(match[2])) if match else None
+    a, b = parse(current), parse(source)
+    return a is not None and b is not None and a > b
 
 
 def build_cw_invest_chooser(runtime, *, expected_title=None) -> OptionChooser:
@@ -634,8 +739,18 @@ def read_cw_replenish(session: SessionModel) -> dict[str, list[int]]:
 
 
 def choose_cw_replenish(session: SessionModel, *, option: int, chooser: OptionChooser) -> SessionModel:
-    chooser(option)
+    try:
+        evidence = chooser(option)
+    except TrailError as error:
+        if error.code in {"CW_EVENT_OPTION_UNCONFIRMED", "CW_EVENT_CONFIRM_UNCONFIRMED"}:
+            mark_cw_stage_stale(session)
+        raise
     mark_cw_stage_stale(session)
+    if isinstance(evidence, dict) and isinstance(evidence.get("successor"), dict):
+        successor = evidence["successor"]
+        _replace_stage_fields(session, value=successor["stage"], stale=False,
+                              node=successor["node"], source_node=evidence.get("source_node"))
+        session.last_stage = {"scene": "cw", "value": successor["stage"]}
     return session
 
 
@@ -691,9 +806,15 @@ def confirm_cw_boss_preview(session: SessionModel, *, confirmer: SceneAction) ->
     return session
 
 
-def settle_cw_next(session: SessionModel, *, continuer: SceneAction) -> SessionModel:
-    continuer()
-    mark_cw_stage_stale(session)
+def settle_cw_next(session: SessionModel, *, continuer: SceneAction, runtime=None, checkpoint=None) -> SessionModel:
+    if runtime is None:
+        continuer()
+        mark_cw_stage_stale(session)
+    else:
+        from trail.scenes.cw.battle import advance_cw_settlement_once
+        result = advance_cw_settlement_once(session, runtime=runtime, checkpoint=checkpoint or (lambda: None))
+        _replace_stage_fields(session, value=result["value"], stale=result["stale"])
+        ensure_cw_state(session)["stage"]["settle_status"] = result["status"]
     return session
 
 
